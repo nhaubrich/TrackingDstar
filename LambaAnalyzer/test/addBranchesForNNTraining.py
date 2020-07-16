@@ -10,7 +10,7 @@ otree = tree.CloneTree(0)
 
 nentries = tree.GetEntries()
 print "nentries = ",nentries
-gridSize = 6
+gridSize = 20
 #nentries = 1200000
 
 isSharedHit = np.zeros(1,dtype=int)

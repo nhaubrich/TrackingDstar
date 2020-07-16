@@ -3,7 +3,7 @@ import sys
 
 #cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','sharedHitContainsGenPion','sharedHitContainsGenProton','sharedHitContainsGenLambda','GenDeltaR']
 cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','GenDeltaR']
-for i in xrange(6*6):
+for i in xrange(20*20):
     cols.append('pixel_%i' % i)
     
 df = read_root(sys.argv[1], columns=cols)
