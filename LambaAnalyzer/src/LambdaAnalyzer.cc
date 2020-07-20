@@ -489,8 +489,8 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             //now the time consuming vertexing
 
             vector<TransientTrack> tks;
-            tks.push_back(*pi1);
-            tks.push_back(*proton);
+            tks.push_back(*trk1);
+            tks.push_back(*trk2);
             KalmanVertexFitter kalman(true);
             TransientVertex v = kalman.vertex(tks);
             if(!v.isValid() || !v.hasRefittedTracks()) continue;
@@ -498,20 +498,31 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             double vtxProb =TMath::Prob( (Double_t) v.totalChiSquared(), (Int_t) v.degreesOfFreedom());
             if (vtxProb < 0.05) continue;
             //cout<<"pass8"<<std::endl;
-            TransientTrack pi1_f = v.refittedTrack(*pi1);
-            TransientTrack proton_f = v.refittedTrack(*proton);        
+            TransientTrack trk1_f = v.refittedTrack(*trk1);
+            TransientTrack trk2_f = v.refittedTrack(*trk2);        
             //TransientTrack pi1_f = *pi1;
             //TransientTrack proton_f = *proton;
 
             GlobalPoint vert(v.position().x(), v.position().y(), v.position().z());
-            TrajectoryStateClosestToPoint  traj1 = pi1->trajectoryStateClosestToPoint(vert );
-            TrajectoryStateClosestToPoint  traj2 = proton->trajectoryStateClosestToPoint(vert );
+            TrajectoryStateClosestToPoint  traj1 = trk1->trajectoryStateClosestToPoint(vert );
+            TrajectoryStateClosestToPoint  traj2 = trk2->trajectoryStateClosestToPoint(vert );
             double d0_1 = traj1.perigeeParameters().transverseImpactParameter();
             double d0_1_error = traj1.perigeeError().transverseImpactParameterError();
             double d0_2 = traj2.perigeeParameters().transverseImpactParameter();
             double d0_2_error = traj2.perigeeError().transverseImpactParameterError();
             //if ( (d0_1/d0_1_error) > 4.0 || (d0_2/d0_2_error) > 4.0) continue;
 
+
+            TransientTrack proton_f;
+            TransientTrack pi1_f;
+            //assign proton/pion to the tracks based on momentum
+            if( trk1_f.track().p() > trk2_f.track().p()){
+                proton_f = trk1_f;
+                pi1_f = trk2_f;
+            }else{
+                proton_f = trk2_f;
+                pi1_f = trk1_f;
+            }
 
 
             math::XYZTLorentzVector ip4_pi1(pi1_f.track().px(),pi1_f.track().py(),pi1_f.track().pz(),sqrt(pow(pi1_f.track().p(),2)+pow(m_pi,2)));
