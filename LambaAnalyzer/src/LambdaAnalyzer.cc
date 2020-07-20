@@ -912,6 +912,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             //std::cout<<"algoResults.size() = "<<algoResults.size()<<std::endl;
             //std::cout<<"t_tks.size() = "<<t_tks.size()<<std::endl;
 
+            //TRUTH SECTION
             //Iterate over lambdas to find the best match to pion/proton tracks
             double min_dR = 99;
             double pion_dR = 99;
@@ -965,7 +966,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     //std::cout << "tPC loop" << std::endl;
                     for(TrackingParticleCollection::const_iterator iter = tPC->begin(); iter != tPC->end(); ++iter){
                         //is lambda?
-                        if(iter->pdgId()==3122){
+                        if(abs(iter->pdgId())==3122){
                             TrackingVertexRef decayVtx = *(iter->decayVertices().end()-1);//some lambdas have multiple decay vertices, looking at just the last one seems to work
                             decayTracks = decayVtx->daughterTracks();
 
@@ -973,11 +974,11 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                             TrackingParticleRef protonCand; 
                             //check lambda decays to p,pi?
                             if(decayTracks.size() >= 2){
-                                if(decayTracks.at(0)->pdgId()==-211 && decayTracks.at(1)->pdgId()==2212){
+                                if(abs(decayTracks.at(0)->pdgId())==211 && abs(decayTracks.at(1)->pdgId())==2212){
                                     pionCand = decayTracks.at(0);
                                     protonCand = decayTracks.at(1);
                                 }
-                                else if(decayTracks.at(0)->pdgId()==2212 && decayTracks.at(1)->pdgId()==-211){
+                                else if(abs(decayTracks.at(0)->pdgId())==2212 && abs(decayTracks.at(1)->pdgId())==211){
                                     pionCand = decayTracks.at(1);
                                     protonCand = decayTracks.at(0);
                                 }
