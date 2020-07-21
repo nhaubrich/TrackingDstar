@@ -129,7 +129,7 @@ class LambdaAnalyzer : public edm::EDAnalyzer {
     int PionPixelHitLayer,ProtonPixelHitLayer;
 
     //Gen quantities
-    std::vector<double> GenLambdaVtxPosx, GenLambdaVtxPosy, GenLambdaVtxPosz, GenLambdaSourceVtxPosx, GenLambdaSourceVtxPosy, GenLambdaSourceVtxPosz,GenLambdaPt, GenLambdaP, GenLambdaPhi, GenLambdaEta, GenLambdaMass, GenLambdaMt, GenLambdaE, GenLambdaEt, GenLambdaPx, GenLambdaPy, GenLambdaPz, GenFlightLength, GenDeltaR;
+    std::vector<double> GenLambdaVtxPosx, GenLambdaVtxPosy, GenLambdaVtxPosz, GenLambdaSourceVtxPosx, GenLambdaSourceVtxPosy, GenLambdaSourceVtxPosz,GenLambdaPt, GenLambdaP, GenLambdaPhi, GenLambdaEta, GenLambdaMass, GenLambdaMt, GenLambdaE, GenLambdaEt, GenLambdaPx, GenLambdaPy, GenLambdaPz, GenFlightLength, GenDeltaR, GenLambdaDeltaR;
     std::vector<bool> GenVertexMatch; 
 
     std::vector<double> GenProtonPt, GenProtonP, GenProtonPhi, GenProtonEta, GenProtonMass, GenProtonMt, GenProtonE, GenProtonEt, GenProtonPx, GenProtonPy, GenProtonPz, GenProtonDeltaR;
@@ -914,12 +914,14 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
             //TRUTH SECTION
             //Iterate over lambdas to find the best match to pion/proton tracks
-            double min_dR = 99;
-            double pion_dR = 99;
-            double p_dR = 99;
+            double min_lambda_dR = 99;
+            double min_pion_dR = 99;
+            double min_p_dR = 99;
             bool genLambdaFound = false;
+            double gen_dR = 99;
             TrackingParticle genLambda;
             TrackingVertexRef genLambdaVtx;
+            TrackingParticle genLambda2;
 
             TrackingParticle genPion;
             TrackingParticle genProton;
@@ -934,32 +936,10 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             //std::cout << "tPC->size(): " << tPC->size() << std::endl; 
 
             if(doGen){
-                //Try to use pixeldigisimlinks to get ids of sim hits
-
-                //Get links to pixels from the hits
+                //Simtrack Matching
                 if(foundSharedHit) std::cout << "Shared Hit!" <<std::endl;
                 else std::cout << "Not Shared Hit!" << std::endl;
-                std::vector<unsigned int> sharedHitIds;
 
-                if (foundSharedHit&&sharedHit->isValid()){
-                    auto firstLink = pixelLinks->find(sharedHit->rawId());
-                    //std::cout << "pixelLink matches for shared hit: " << std::count(pixelLinks->begin(),pixelLinks->end(),sharedHit->rawId()) << std::endl;
-
-                    if(firstLink != pixelLinks->end()){
-                        auto link_detset = (*firstLink);
-                        //std::cout << "SharedHit! Hit RawId: " << sharedHit->rawId() << std::endl;
-
-                        for(auto linkiter : link_detset.data){
-                            nSimTracksShared++;
-                            //std::cout << "shared hit track id: " << linkiter.SimTrackId() << std::endl;
-                            sharedHitIds.push_back((unsigned int)(linkiter.SimTrackId()));
-                            //std::cout << "Channel? " << (int)(linkiter.channel()) <<std::endl;
-                            //std::cout << "SimTrackId? " << (int)(linkiter.SimTrackId()) <<std::endl;
-                            //std::cout << "Fraction? " << (float)(linkiter.fraction()) <<std::endl;
-                            //std::cout << "" << std::endl;
-                        }
-                    }
-                }
 
                 //Match gen-level lambdas to reco lambdas 
                 if(tPC->size() > 0){
@@ -967,6 +947,15 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     for(TrackingParticleCollection::const_iterator iter = tPC->begin(); iter != tPC->end(); ++iter){
                         //is lambda?
                         if(abs(iter->pdgId())==3122){
+                            //Match lambda to reco lambda via dR
+                            double lambda_dR = deltaR(ip4_Lambda.Eta(),ip4_Lambda.Phi(),iter->eta(),iter->phi());
+                            if(lambda_dR < min_lambda_dR){
+                                min_lambda_dR = lambda_dR;
+                                genLambda2 = tPC->at(std::distance(tPC->begin(),iter));
+                            }
+                            
+                            
+                            //Match lambda via decay products
                             TrackingVertexRef decayVtx = *(iter->decayVertices().end()-1);//some lambdas have multiple decay vertices, looking at just the last one seems to work
                             decayTracks = decayVtx->daughterTracks();
 
@@ -984,10 +973,12 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                                 }
                                 else continue;
                                 //Now we have the pion/proton tracks
-                                pion_dR = deltaR(ip4_pi1.Eta(),ip4_pi1.Phi(),pionCand->eta(),pionCand->phi());  
-                                p_dR = deltaR(ip4_proton.Eta(),ip4_proton.Phi(),protonCand->eta(),protonCand->phi());   
-                                if(pion_dR + p_dR < min_dR){
-                                    min_dR = pion_dR + p_dR;
+                                double pion_dR = deltaR(ip4_pi1.Eta(),ip4_pi1.Phi(),pionCand->eta(),pionCand->phi());  
+                                double p_dR = deltaR(ip4_proton.Eta(),ip4_proton.Phi(),protonCand->eta(),protonCand->phi());   
+                                if(pion_dR + p_dR < gen_dR){
+                                    gen_dR = pion_dR + p_dR;
+                                    min_pion_dR = pion_dR;
+                                    min_p_dR = p_dR;
                                     genLambda = tPC->at(std::distance(tPC->begin(), iter));
                                     genPion = *pionCand;
                                     genProton = *protonCand;
@@ -1001,7 +992,8 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     } 
 
                     if(genLambdaFound){
-                        std::cout << "Matched Gen Lambda, dR = " << min_dR << std::endl; 
+                        std::cout << "Matched Gen Lambda, dR = " << gen_dR << std::endl; 
+                        std::cout << "dPhi gen lamdas:" << genLambda.phi() - genLambda2.phi() << std::endl;
                     }
                 }
             }
@@ -1181,7 +1173,8 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 GenLambdaPx.push_back(genLambda.px());
                 GenLambdaPy.push_back(genLambda.py());
                 GenLambdaPz.push_back(genLambda.pz());
-                GenDeltaR.push_back(min_dR);
+                GenDeltaR.push_back(gen_dR);
+                GenLambdaDeltaR.push_back(min_lambda_dR);
                 //genLambdaVtx->position is the lambda->pion,proton vertex.  genLambda.v() is the vertex the lambda is created at
                 //std::cout << "Calculating Gen Lambda Flight Length" << std::endl;
                 GenFlightLength.push_back(sqrt(pow(genLambdaVtx->position().x()-genLambda.vx(),2) + pow(genLambdaVtx->position().y() - genLambda.vy(),2) + pow(genLambdaVtx->position().z() - genLambda.vz(),2)));
@@ -1198,7 +1191,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 GenProtonPx.push_back(genProton.px());
                 GenProtonPy.push_back(genProton.py());
                 GenProtonPz.push_back(genProton.pz());
-                GenProtonDeltaR.push_back(p_dR);
+                GenProtonDeltaR.push_back(min_p_dR);
 
                 GenPionPt.push_back(genPion.pt());
                 GenPionP.push_back(genPion.p());
@@ -1211,7 +1204,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 GenPionPx.push_back(genPion.px());
                 GenPionPy.push_back(genPion.py());
                 GenPionPz.push_back(genPion.pz());
-                GenPionDeltaR.push_back(pion_dR);
+                GenPionDeltaR.push_back(min_pion_dR);
 
                 //Hit matching
                 nSimTracksshared.push_back(nSimTracksShared);
@@ -1324,14 +1317,14 @@ void LambdaAnalyzer::initialize(){
     //Gen quantities
     GenLambdaVtxPosx.clear(); GenLambdaVtxPosy.clear(); GenLambdaVtxPosz.clear();
     GenLambdaSourceVtxPosx.clear(); GenLambdaSourceVtxPosy.clear(); GenLambdaSourceVtxPosz.clear();
-    GenLambdaMass.clear(); GenLambdaPt.clear(); GenLambdaPhi.clear(); GenLambdaEta.clear(); GenLambdaMt.clear(); GenLambdaE.clear(); GenLambdaEt.clear(); GenLambdaPx.clear(); GenLambdaPy.clear(); GenLambdaPz.clear(); GenFlightLength.clear(); GenDeltaR.clear(); GenVertexMatch.clear();
+    GenLambdaMass.clear(); GenLambdaPt.clear(); GenLambdaPhi.clear(); GenLambdaEta.clear(); GenLambdaMt.clear(); GenLambdaE.clear(); GenLambdaEt.clear(); GenLambdaPx.clear(); GenLambdaPy.clear(); GenLambdaPz.clear(); GenFlightLength.clear(); GenDeltaR.clear(); GenVertexMatch.clear(); GenLambdaDeltaR.clear();
 
     // Gen Proton and Pion
     GenProtonPt.clear(); GenProtonP.clear(); GenProtonPhi.clear(); GenProtonEta.clear(); GenProtonMass.clear(); GenProtonMt.clear(); GenProtonE.clear(); GenProtonEt.clear(); GenProtonPx.clear(); GenProtonPy.clear(); GenProtonPz.clear(); GenProtonDeltaR.clear();
     GenPionPt.clear(); GenPionP.clear(); GenPionPhi.clear(); GenPionEta.clear(); GenPionMass.clear(); GenPionMt.clear(); GenPionE.clear(); GenPionEt.clear(); GenPionPx.clear(); GenPionPy.clear(); GenPionPz.clear(); GenPionDeltaR.clear();
 
     //Hit Matching
-    nSimTracksshared.clear(); nSimTrackspion.clear(); nSimTracksproton.clear(); nUniqueSimTracksInSharedHit.clear(); nUniqueSimTracksInPionHit.clear(); nUniqueSimTracksInProtonHit.clear(); sharedHitContainsGenLambda.clear(); sharedHitContainsGenPion.clear(); sharedHitContainsGenProton.clear(); uniqueSimTrackIds.clear();
+    nSimTracksshared.clear(); nSimTrackspion.clear(); nSimTracksproton.clear(); nUniqueSimTracksInSharedHit.clear(); nUniqueSimTracksInPionHit.clear(); nUniqueSimTracksInProtonHit.clear(); sharedHitContainsGenLambda.clear(); sharedHitContainsGenPion.clear(); sharedHitContainsGenProton.clear(); uniqueSharedSimTrackIds.clear();
 
 
     //MC ids
@@ -1478,6 +1471,7 @@ void LambdaAnalyzer::beginJob(){
     tree1->Branch("GenLambdaPz",&GenLambdaPz);
     tree1->Branch("GenFlightLength",&GenFlightLength);
     tree1->Branch("GenDeltaR",&GenDeltaR);
+    tree1->Branch("GenLambdaDeltaR",&GenLambdaDeltaR);
     tree1->Branch("GenVertexMatch",&GenVertexMatch);
 
     //Gen Protons and Pions
