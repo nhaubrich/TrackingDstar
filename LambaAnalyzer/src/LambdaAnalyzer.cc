@@ -142,7 +142,7 @@ class LambdaAnalyzer : public edm::EDAnalyzer {
     //Hit Truth matching quantities
     std::vector<int> nSimTracksshared, nSimTrackspion, nSimTracksproton, nUniqueSimTracksInSharedHit,nUniqueSimTracksInPionHit,nUniqueSimTracksInProtonHit;
     std::vector<bool> sharedHitContainsGenLambda, sharedHitContainsGenPion, sharedHitContainsGenProton; 
-    std::vector<std::vector<signed int>> uniquePionSimTrackIds, uniqueProtonSimTrackIds, uniqueSharedSimTrackIds;
+    std::vector<std::vector<signed int>> uniquePionSimTrackPDGIds, uniqueProtonSimTrackPDGIds, uniqueSharedSimTrackPDGIds;
 
 
 
@@ -1026,7 +1026,8 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     std::vector<unsigned int> uniqueSimTracksInSharedHit;
                     std::vector<int> uniqueSimTrackSharedPDGIds;
                     LambdaAnalyzer::getSimTracksFromPixelCluster(sharedHitPixels, sharedHit, uniqueSimTracksInSharedHit, uniqueSimTrackSharedPDGIds);
-                    uniqueSharedSimTrackIds.push_back(uniqueSimTrackSharedPDGIds);
+                    uniqueSharedSimTrackPDGIds.push_back(uniqueSimTrackSharedPDGIds);
+
 
                     std::cout << "Found this many unique simtracks in shared hit: " << uniqueSimTracksInSharedHit.size() << std::endl;
                     nUniqueSimTracksShared = uniqueSimTracksInSharedHit.size();
@@ -1048,14 +1049,14 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     std::vector<int> uniqueSimTrackPionPDGIds;
                     LambdaAnalyzer::getSimTracksFromPixelCluster(pionHitPixels, pixelhit_pi, uniqueSimTracksInPionHit, uniqueSimTrackPionPDGIds);
                     nUniqueSimTracksPion = uniqueSimTracksInPionHit.size(); 
-                    uniquePionSimTrackIds.push_back(uniqueSimTrackPionPDGIds);
+                    uniquePionSimTrackPDGIds.push_back(uniqueSimTrackPionPDGIds);
+
                     
                     std::vector<unsigned int> uniqueSimTracksInProtonHit;
                     std::vector<int> uniqueSimTrackProtonPDGIds;
                     LambdaAnalyzer::getSimTracksFromPixelCluster(protonHitPixels, pixelhit_p, uniqueSimTracksInProtonHit, uniqueSimTrackProtonPDGIds);
                     nUniqueSimTracksProton = uniqueSimTracksInProtonHit.size(); 
-                    uniqueProtonSimTrackIds.push_back(uniqueSimTrackProtonPDGIds);
-
+                    uniqueProtonSimTrackPDGIds.push_back(uniqueSimTrackProtonPDGIds);
                 }
 
             }
@@ -1326,7 +1327,8 @@ void LambdaAnalyzer::initialize(){
     GenPionPt.clear(); GenPionP.clear(); GenPionPhi.clear(); GenPionEta.clear(); GenPionMass.clear(); GenPionMt.clear(); GenPionE.clear(); GenPionEt.clear(); GenPionPx.clear(); GenPionPy.clear(); GenPionPz.clear(); GenPionDeltaR.clear();
 
     //Hit Matching
-    nSimTracksshared.clear(); nSimTrackspion.clear(); nSimTracksproton.clear(); nUniqueSimTracksInSharedHit.clear(); nUniqueSimTracksInPionHit.clear(); nUniqueSimTracksInProtonHit.clear(); sharedHitContainsGenLambda.clear(); sharedHitContainsGenPion.clear(); sharedHitContainsGenProton.clear(); uniqueSharedSimTrackIds.clear(); uniquePionSimTrackIds.clear(); uniqueProtonSimTrackIds.clear();
+    nSimTracksshared.clear(); nSimTrackspion.clear(); nSimTracksproton.clear(); nUniqueSimTracksInSharedHit.clear(); nUniqueSimTracksInPionHit.clear(); nUniqueSimTracksInProtonHit.clear(); sharedHitContainsGenLambda.clear(); sharedHitContainsGenPion.clear(); sharedHitContainsGenProton.clear(); uniqueSharedSimTrackPDGIds.clear(); uniquePionSimTrackPDGIds.clear(); uniqueProtonSimTrackPDGIds.clear();
+
 
 
 
@@ -1513,9 +1515,10 @@ void LambdaAnalyzer::beginJob(){
     tree1->Branch("sharedHitContainsGenLambda",&sharedHitContainsGenLambda);
     tree1->Branch("sharedHitContainsGenPion",&sharedHitContainsGenPion);
     tree1->Branch("sharedHitContainsGenProton",&sharedHitContainsGenProton);
-    tree1->Branch("uniqueSharedSimTrackIds",&uniqueSharedSimTrackIds);
-    tree1->Branch("uniquePionSimTrackIds",&uniquePionSimTrackIds);
-    tree1->Branch("uniqueProtonSimTrackIds",&uniqueProtonSimTrackIds);
+    tree1->Branch("uniqueSharedSimTrackPDGIds",&uniqueSharedSimTrackPDGIds);
+    tree1->Branch("uniquePionSimTrackPDGIds",&uniquePionSimTrackPDGIds);
+    tree1->Branch("uniqueProtonSimTrackPDGIds",&uniqueProtonSimTrackPDGIds);
+
 
 
 }
