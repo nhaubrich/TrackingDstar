@@ -321,13 +321,13 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         iEvent.getByToken(pdslCollT_, PDSLContainer);
         pixelLinks = PDSLContainer.product();
     }
-    edm::ESHandle<TransientTrackBuilder> theB;
+    edm::ESHandle<TransientTrackBuilder> theB; //init builder for more functions like calculating vertex and geometry in each event (give it tracks)
     iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theB);
     ///////t_tks = (*theB).build(generalTracks_noPXB1);
-    t_tks = (*theB).build(generalTracks);
-    t_tks_noPXB1 = (*theB).build(generalTracks_noPXB1);
+    t_tks = (*theB).build(generalTracks); // 2 collections : all tracks
+    t_tks_noPXB1 = (*theB).build(generalTracks_noPXB1); // ignores main vertices (proton proton)
 
-    // Primary Vtx with most tracks
+    // Primary Vtx with most tracks (init vertex collection)
     Handle<reco::VertexCollection> recVtxs;
     iEvent.getByToken(VtxCollT_, recVtxs);
     //iEvent.getByLabel("offlinePrimaryVertices", recVtxs); //has a BeamSpot if no vtx found;
@@ -344,7 +344,7 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
     //////nPV = assomap->size();
     nPV = recVtxs->size();
     int itnum = 0;
-    for(size_t i = 0; i < recVtxs->size(); ++ i) {
+    for(size_t i = 0; i < recVtxs->size(); ++ i) { //loop over primary vertices
         //for(TrackVertexAssMap::const_iterator iAM = assomap->begin(); iAM != assomap->end(); iAM++) 
         itnum++;
         //if (itnum==1) continue; // ignore first PV, as per Vincenzo's suggestion
@@ -355,17 +355,17 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         //std::cout<<"ndof = "<<RecVtx.ndof()<<std::endl;
         //std::cout<<"tracksSize = "<<RecVtx.tracksSize()<<std::endl;
         //std::cout<<"isFake = "<<RecVtx.isFake()<<std::endl;
-        if(RecVtx.ndof()<4 || RecVtx.tracksSize()<3 || RecVtx.isFake()) continue;  
+        if(RecVtx.ndof()<4 || RecVtx.tracksSize()<3 || RecVtx.isFake()) continue;  // check chi2, min number (any 2 tracks can make a vertex), and isFake is some flag (?)  
         //std::cout << "vertex: " << itnum << " ntracks: " << RecVtx.tracksSize() << std::endl;
 
-        PVOrder = itnum;
-        PVx = RecVtx.x();
+        PVOrder = itnum; // Just ordering vertices
+        PVx = RecVtx.x(); // Position of primary vertex
         PVy = RecVtx.y();
         PVz = RecVtx.z();
-        PVerrx = sqrt(RecVtx.covariance(0,0));
+        PVerrx = sqrt(RecVtx.covariance(0,0)); // error
         PVerry = sqrt(RecVtx.covariance(1,1));
         PVerrz = sqrt(RecVtx.covariance(2,2));
-        PVcxy = RecVtx.covariance(0,1);
+        PVcxy = RecVtx.covariance(0,1); // covariance
         PVcxz = RecVtx.covariance(0,2);
         PVcyz = RecVtx.covariance(1,2);
 
@@ -376,7 +376,7 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         vtx_trks.reserve(RecVtx.tracksSize());
 
         for(reco::Vertex::trackRef_iterator trk_it = RecVtx.tracks_begin(); trk_it != RecVtx.tracks_end(); ++trk_it){
-
+             // for each vertex, take a track associated to  vertex and make transcient so we can put more selections on tracks (cuts)
             const Track& track = *trk_it->get();
             vtx_trks.push_back( (*theB).build(track) );    
         }
@@ -388,14 +388,14 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 
             if( fabs(t_trk.track().eta())<2.4 && 
                     //   t_trk.track().normalizedChi2() < 10.0 &&
-                    t_trk.track().pt() > 0.25){
+                    t_trk.track().pt() > 0.25){ // selection to check if within detector and min pt
                 //if ( fabs(t_trk.track().dxy(RecVtx.position()) / t_trk.track().d0Error()) < 3.0
                 //  && fabs(t_trk.track().dz(RecVtx.position()) / t_trk.track().dzError()) < 3.0) {
                 //    slowPiTracks.push_back( &t_tks.at(j));
                 //}
                 if( (t_trk.track().numberOfValidHits() >= 7) && (t_trk.track().pt() > 0.35) &&
                         fabs(t_trk.track().dz(RecVtx.position()))<2.0 &&
-                        fabs(t_trk.track().dxy(RecVtx.position()) / t_trk.track().d0Error()) > 2.0 ) {
+                        fabs(t_trk.track().dxy(RecVtx.position()) / t_trk.track().d0Error()) > 2.0 ) { // want many valid hits, pt cut, dz is how close track comes to vertex -> cut requires track to be close to vertex, same cut for dsxy = dr but divided by error
                     //fabs(t_trk.track().dxy(RecVtx.position()))<0.1 && 
                     goodTracks.push_back( &t_tks.at(j) );
                 }
@@ -407,15 +407,15 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
             //cout<<"track pt, eta, phi, dxy, dz, nhits, chi2: "<<t_trk.track().pt()<<", "<<t_trk.track().eta()<<", "<<t_trk.track().phi()<<", "<<t_trk.track().dxy(RecVtx.position())<<", "<<t_trk.track().dz(RecVtx.position())<<", "<<t_trk.track().numberOfValidHits()<<", "<<t_trk.track().normalizedChi2()<<endl;
         }
 
-        ntracks = slowPiTracks.size();
+        ntracks = slowPiTracks.size(); // probably useless
 
         //cout << t_tks.size() << "  " << slowPiTracks.size() << " " << goodTracks.size() << endl;
 
 
-        if(doGen){
+        if(doGen){  // probably not useful
             printGenInfo(iEvent);
         }
-        loop(iEvent,iSetup,RecVtx);
+        loop(iEvent,iSetup,RecVtx); // does the big main loop
 
         //cout << "loop done" << endl;
         goodTracks.clear();
@@ -425,7 +425,7 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 
 }
 
-void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetup, const reco::Vertex& RecVtx){
+void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetup, const reco::Vertex& RecVtx){  // called for each primary vertex
 
     using namespace std;
     using namespace reco;
@@ -434,7 +434,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
     //cout << RecVtx.position() << endl;
     //cout<<"Starting loop"<<endl;
 
-    for(size_t i=0;i<goodTracks.size();i++){  
+    for(size_t i=0;i<goodTracks.size();i++){  // loops over all combinations of tracks (does not count over)
 
         TransientTrack* trk1 = goodTracks.at(i);
 
@@ -442,7 +442,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
             TransientTrack* trk2 = goodTracks.at(j);
 
-            if(trk1->charge() == trk2->charge()) continue;
+            if(trk1->charge() == trk2->charge()) continue; // if same charge ignore since we looking for  + and - (proton and negative pion), assumes everything is either proton or pion-), later we do cuts on Lambda
             //cout<<"pass1"<<std::endl;
 
             ////math::XYZVector Lambda_p = trk1->track().momentum() + trk2->track().momentum();
@@ -488,21 +488,21 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             tks.push_back(*trk1);
             tks.push_back(*trk2);
 
-            KalmanVertexFitter kalman(true);
-            TransientVertex v = kalman.vertex(tks);
-            if(!v.isValid() || !v.hasRefittedTracks()) continue;
+            KalmanVertexFitter kalman(true); // type of fitting
+            TransientVertex v = kalman.vertex(tks); // give the fit a track and it gives us a secondary vertex 
+            if(!v.isValid() || !v.hasRefittedTracks()) continue; // check if vertex is valid or if it had to refit the tracks
             //cout<<"pass7"<<std::endl;
             double vtxProb =TMath::Prob( (Double_t) v.totalChiSquared(), (Int_t) v.degreesOfFreedom());
-            if (vtxProb < 0.05) continue;
+            if (vtxProb < 0.05) continue; // check how likely it is to be correct, if its very unlikrly forget it
             //cout<<"pass8"<<std::endl;
-            TransientTrack trk1_f = v.refittedTrack(*trk1);
+            TransientTrack trk1_f = v.refittedTrack(*trk1);  // since changed vertex from primary to secondary , we need  to refit our tracks to the new vertex, like make a fit based on this new vertex to possibly find other candidates (?)
             TransientTrack trk2_f = v.refittedTrack(*trk2);        
 
             //TransientTrack pi1_f = *pi1;
             //TransientTrack proton_f = *proton;
 
-            GlobalPoint vert(v.position().x(), v.position().y(), v.position().z());
-            TrajectoryStateClosestToPoint  traj1 = trk1->trajectoryStateClosestToPoint(vert );
+            GlobalPoint vert(v.position().x(), v.position().y(), v.position().z());  //location of secondary vertex after refitting.
+            TrajectoryStateClosestToPoint  traj1 = trk1->trajectoryStateClosestToPoint(vert ); // distance from vert2 to track (closest point of approach)
             TrajectoryStateClosestToPoint  traj2 = trk2->trajectoryStateClosestToPoint(vert );
 
             double d0_1 = traj1.perigeeParameters().transverseImpactParameter();
@@ -536,7 +536,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             //if(fabs(d0mass - 1.86484)>0.030) continue;
             //cout<<"d0mass = "<<d0mass<<endl;
             //cout<<"pass9"<<std::endl;
-            if( fabs(ip4_Lambda.M()-1.1157)  > 0.05) continue;
+            if( fabs(ip4_Lambda.M()-1.1157)  > 0.05) continue; // cut on lambda mass
 
             // math::XYZTLorentzVector dS_p4 = d0_p4 + p4_S;
             // double dsmass = dS_p4.M();
@@ -549,7 +549,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
             math::XYZVector displacement = Lambda_position - PV_position;
             math::XYZVector Lambda_3vector = math::XYZVector(ip4_Lambda.Px(), ip4_Lambda.Py(), ip4_Lambda.Pz());
-            double cosalpha = (displacement.Dot(Lambda_3vector) - displacement.Z()*Lambda_3vector.Z() ) / ( sqrt(displacement.perp2()) * sqrt(Lambda_3vector.perp2()) );
+            double cosalpha = (displacement.Dot(Lambda_3vector) - displacement.Z()*Lambda_3vector.Z() ) / ( sqrt(displacement.perp2()) * sqrt(Lambda_3vector.perp2()) ); // angle between momentum of lambda and displacement
             //double flightlength = sqrt(displacement.perp2()) * (cosalpha/fabs(cosalpha)); // flight length in the transverse plane
             //double flightlength = sqrt(displacement.perp2()) * cosalpha; // flight length in the transverse plane in the direction of momentum (what we call lifetime in AN)
             double flightlength = sqrt( displacement.perp2());
@@ -559,12 +559,13 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             double deriv_y = displacement.Y() / fabs(flightlength);
 
             double sigma_L = pow(deriv_x,2) * (pow(PVerrx,2) + v.positionError().cxx()) + pow(deriv_y,2) * (pow(PVerry,2) + v.positionError().cyy()) + 2*deriv_x*deriv_y * (PVcxy + v.positionError().cyx());
-            sigma_L = sqrt(sigma_L);
+            sigma_L = sqrt(sigma_L); // uncertainty in position in xy plane
             double LSig = flightlength / sigma_L;
 
-            if (LSig < 10.) continue;
+            if (LSig < 10.) continue; // include only lambdas with small uncertainty or (alternatively big flight length)
 
             //double flightlength3D = (displacement.Dot(Lambda_3vector) ) / ( sqrt(Lambda_3vector.Mag2()) );
+	    //// same thing as before but 3D (using z axis) for another cut
             double flightlength3D = sqrt(displacement.Mag2());
             double cosalpha3D = (displacement.Dot(Lambda_3vector) ) / ( sqrt(Lambda_3vector.Mag2()) * sqrt(displacement.Mag2()) );
             double deriv3D_x = displacement.X() / fabs(flightlength3D);
@@ -576,13 +577,13 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             sigma_L3D = sqrt(sigma_L3D);
             double LSig3D = flightlength3D / sigma_L3D;
 
-            if (cosalpha < 0.9998) continue;
+            if (cosalpha < 0.9998) continue; // cut on cosalpha, we expect  them to be very aligned
             //if (cosalpha < 0) continue;
             //cout<<"passALL"<<std::endl;
             //cout<<"pion has pt: "<<pi1->track().pt()<<std::endl;
             //cout<<"pion has unfitted pt: "<<pi1->track().pt()<<std::endl;
 
-            if(doGen){
+            if(doGen){ // probably obsolete since genParticles does not have lambdas, should delete (?)
 
                 //Handle<GenParticleCollection> genParticles;
                 //iEvent.getByLabel("genParticles",genParticles);
@@ -636,15 +637,17 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             //        }
             //        std::cout<<"nSharedPBHits = "<<nSharedPBHits<<std::endl;
 
-            trackingRecHit_iterator hb_pi1 = pi1->recHitsBegin();
+            // SECOND PART OF ANALYZER : SHARED HITS;  NB: still looking at one vertex
+
+            trackingRecHit_iterator hb_pi1 = pi1->recHitsBegin(); // LOOKING AT indidvidual particles (multiple pixels) , here looking at ONE LAYER
             trackingRecHit_iterator hb_proton = proton->recHitsBegin();
-            TrackingRecHit const * h1[4] = { (*hb_pi1), (*(hb_pi1+1)), (*(hb_pi1+2)), (*(hb_pi1+3))  };
-            TrackingRecHit const * h2[4] = { (*hb_proton), (*(hb_proton+1)), (*(hb_proton+2)), (*(hb_proton+3)) };
+            TrackingRecHit const * h1[4] = { (*hb_pi1), (*(hb_pi1+1)), (*(hb_pi1+2)), (*(hb_pi1+3))  }; // 1 hit per layer per particle
+            TrackingRecHit const * h2[4] = { (*hb_proton), (*(hb_proton+1)), (*(hb_proton+2)), (*(hb_proton+3)) }; // assigning them to one array
             const SiPixelRecHit* pixelhit_p = dynamic_cast<const SiPixelRecHit*>(h2[0]);
             std::vector<SiPixelCluster::Pixel> protonHitPixels;
-            if(pixelhit_p!=nullptr && h2[0]->isValid() && LambdaMass.size()==0) {
+            if(pixelhit_p!=nullptr && h2[0]->isValid() && LambdaMass.size()==0) { // if the hit is not empty and there is no flag and the lambda exists, then do this
                 // only fill for the first row in the event since we can't have a vector of vectors
-                std::vector<SiPixelCluster::Pixel> pixels_p(pixelhit_p->cluster()->pixels());
+                std::vector<SiPixelCluster::Pixel> pixels_p(pixelhit_p->cluster()->pixels()); // storing pixel info
                 protonHitPixels = pixels_p;
 
                 //    std::cout<<"pixels.size() = "<<pixels.size()<<std::endl;
@@ -652,13 +655,13 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 //    std::cout<<"pixelhit->clusterProbability(1) = "<<pixelhit->clusterProbability(1)<<std::endl;
                 //    std::cout<<"pixelhit->hasFilledProb() = "<<std::endl;
                 for (unsigned int k=0; k<pixels_p.size(); k++) {
-                    SiPixelCluster::Pixel pixel_p = pixels_p[k];
+                    SiPixelCluster::Pixel pixel_p = pixels_p[k]; // look at individual pixels and assign position and charge deposit
                     ProtonPixelHit_x.push_back(pixel_p.x);
                     ProtonPixelHit_y.push_back(pixel_p.y);
                     ProtonPixelHit_adc.push_back(pixel_p.adc);
                 }
-                PXBDetId pxb_id_p = h2[0]->geographicalId();
-                ProtonPixelHitLayer = pxb_id_p.layer();
+                PXBDetId pxb_id_p = h2[0]->geographicalId(); //get geography of where hit is and
+                ProtonPixelHitLayer = pxb_id_p.layer(); // and layer of where hit is
             }
             else {
                 ProtonPixelHit_x.push_back(-99);
@@ -695,26 +698,27 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             }
             //std::cout<<"new lambda pairing"<<std::endl;
 
+	    //HERE we are looking at the inner most first shared hit recorded per secondary vertex (assuming one lambda), so only one shared hit per vertex (if it exists)
             //const SiPixelRecHit* sharedHit;
             const TrackingRecHit* sharedHit;
             bool foundSharedHit = false;
             //bool foundSharedHitLayer0 = false;
             std::vector<SiPixelCluster::Pixel> sharedHitPixels;
-            for (int k1=0; k1<4; k1++) {
+            for (int k1=0; k1<4; k1++) { // looping over all combination of hits
                 if (!h1[k1]->isValid()) continue;
                 for (int k2=0; k2<4; k2++) {
                     if (!h2[k2]->isValid()) continue;
-                    bool shared = h1[k1]->sharesInput(h2[k2],TrackingRecHit::some);
+                    bool shared = h1[k1]->sharesInput(h2[k2],TrackingRecHit::some); // this function does a thing where it can do tell if they are shared or not (check how close the info of each hit is close to the other, you can speify how much close)
                     if (shared) {
-                        const SiPixelRecHit* pixelhit = dynamic_cast<const SiPixelRecHit*>(h1[k1]);
-                        if(pixelhit!=nullptr) {
+                        const SiPixelRecHit* pixelhit = dynamic_cast<const SiPixelRecHit*>(h1[k1]); //cast hit as pixelrechit (instead of trackingrechit, just a recast)
+                        if(pixelhit!=nullptr) { // if it exists
                             std::vector<SiPixelCluster::Pixel> pixels(pixelhit->cluster()->pixels());
                             sharedHitPixels =  pixels;
-                            if (LambdaSharedHitLayer.size() == 0) {
+                            if (LambdaSharedHitLayer.size() == 0) { // if it already saved info for a shared hit for this vertex, them it ignores the remaining tracks
                                 // can't have a vector of vectors so I don't have a better way to do this now then only deal with the first
                                 // Lambda if there are more than one for this vertex
                                 //std::cout<<"pixels.size() = "<<pixels.size()<<std::endl;
-                                for (unsigned int k=0; k<pixels.size(); k++) {
+                                for (unsigned int k=0; k<pixels.size(); k++) { // saves position of all pixel of  shared hit
                                     SiPixelCluster::Pixel pixel = pixels[k];
                                     LambdaSharedHitPixelHits_x.push_back(pixel.x);
                                     LambdaSharedHitPixelHits_y.push_back(pixel.y);
@@ -725,13 +729,13 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                         //std::cout<<"k1, k2 = "<<k1<<" : "<<k2<<std::endl;
                         //std::cout<<"h1[k1], h2[k2] = "<<h1[k1]<<" : "<<h2[k2]<<std::endl;
                         //std::cout<<h1[k1]->geographicalId()<<std::endl;
-                        PXBDetId pxb_id = h1[k1]->geographicalId();
+                        PXBDetId pxb_id = h1[k1]->geographicalId();  // init a var that gives you which layer (and some other stuff) of the shared hit
                         //std::cout<<pxb_id.layer()<<std::endl;
                         //std::cout<<pxb_id.ladder()<<std::endl;
                         //std::cout<<pxb_id.module()<<std::endl;
-                        LambdaSharedHitLayer.push_back(pxb_id.layer());
-                        LambdaSharedHitLadder.push_back(pxb_id.ladder());
-                        LambdaSharedHitModule.push_back(pxb_id.module());
+                        LambdaSharedHitLayer.push_back(pxb_id.layer()); // from 0 1 2 3 (4 layers)
+                        LambdaSharedHitLadder.push_back(pxb_id.ladder()); // each layer is made of a ladder
+                        LambdaSharedHitModule.push_back(pxb_id.module()); // each ladder is made of modules
                         foundSharedHit = true;
                         sharedHit = h1[k1];
                         //if (pxb_id.layer() == 0) {
@@ -756,6 +760,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 LambdaSharedHitModule.push_back(-99);
             } 
 
+	    // Trying to refit lamda distribution ignoring shared hits, trying to get rid of peaks since we assumed shared hits are bias (Result is not so good since we get much more uncertainty)
             double flightlength_noPXB1 = -99.;
             double flightlength_noPXB1_error = -99.;
             // try to rebuild Lambda candidate using the corresponding proton/pion tracks with hits at layer 0 removed
@@ -921,7 +926,8 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             //std::cout<<"algoResults.size() = "<<algoResults.size()<<std::endl;
             //std::cout<<"t_tks.size() = "<<t_tks.size()<<std::endl;
 
-            //TRUTH SECTION
+
+            //TRUTH MATCHING (finding out bsts match to recontruct lambdas)    
             //Iterate over lambdas to find the best match to pion/proton tracks
             double min_lambda_dR = 99;
             double min_pion_dR = 99;
@@ -1022,7 +1028,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             bool genProtonInSharedHit = false;
             if(doGen){
                 //TODO May need to add ->isValid() check on all hits here
-                if(foundSharedHit){
+                if(foundSharedHit){ // loop over shared hits
                     std::vector<unsigned int> uniqueSimTracksInSharedHit;
                     std::vector<int> uniqueSimTrackSharedPDGIds;
                     LambdaAnalyzer::getSimTracksFromPixelCluster(sharedHitPixels, sharedHit, uniqueSimTracksInSharedHit, uniqueSimTrackSharedPDGIds);
@@ -1079,6 +1085,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             flightLength_noPXB1.push_back(flightlength_noPXB1);
             flightLength_noPXB1_error.push_back(flightlength_noPXB1_error);
 
+            // global position of rec Lambda vars
             LambdaVtxPosx.push_back(v.position().x());
             LambdaVtxPosy.push_back(v.position().y());
             LambdaVtxPosz.push_back(v.position().z());
@@ -1429,6 +1436,19 @@ void LambdaAnalyzer::beginJob(){
     //tree1->Branch("KpiTrkSpt",&KpiTrkSpt);
     tree1->Branch("LambdaPt",&LambdaPtKpi);
     tree1->Branch("MCLambdaDeltaR",&MCLambdaDeltaR);
+
+    // Global position vars of rec Lambda added to tree
+    tree1->Branch("LambdaVtxPosx",&LambdaVtxPosx);
+    tree1->Branch("LambdaVtxPosy",&LambdaVtxPosy);
+    tree1->Branch("LambdaVtxPosz",&LambdaVtxPosz);
+    tree1->Branch("LambdaVtxerrx",&LambdaVtxerrx);
+    tree1->Branch("LambdaVtxerry",&LambdaVtxerry);
+    tree1->Branch("LambdaVtxerrz",&LambdaVtxerrz);
+    tree1->Branch("LambdaVtxcxy",&LambdaVtxcxy);
+    tree1->Branch("LambdaVtxcxz",&LambdaVtxcxz);
+    tree1->Branch("LambdaVtxcyz",&LambdaVtxcyz);
+
+
     //tree1->Branch("DSPtKpi",&DSPtKpi);
     //tree1->Branch("KpiDSDeltaR",&KpiDSDeltaR);
     //tree1->Branch("KpiTrkKnhits",&KpiTrkKnhits);
