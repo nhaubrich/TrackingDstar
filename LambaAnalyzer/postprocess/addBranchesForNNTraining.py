@@ -1,17 +1,21 @@
+print "Beginning addBranchesForNNTraining"
 import ROOT
 import sys
 from math import pow,sqrt
 import numpy as np
 
-ifile = ROOT.TFile(sys.argv[1])
-ofile = ROOT.TFile("ofile2.root","RECREATE")
+# Manually give i/o files below
+ifile = ROOT.TFile("output2.root")
+ofile = ROOT.TFile("output3.root","RECREATE")
+# Automatically give i/o files from arguments 
+#ifile = ROOT.TFile(sys.argv[1])  
+#ofile = ROOT.TFile(sys.argv[2],"RECREATE")
+
 tree = ifile.Get("tree1")
 otree = tree.CloneTree(0)
-
 nentries = tree.GetEntries()
 print "nentries = ",nentries
 gridSize = 20
-#nentries = 1200000
 
 isSharedHit = np.zeros(1,dtype=int)
 otree.Branch("isSharedHit",isSharedHit,"isSharedHit/I")
@@ -26,7 +30,8 @@ nUniqueSimTracksInSharedHit = np.zeros(1,dtype=int)
 sharedHitContainsGenLambda = np.zeros(1,dtype=bool)
 sharedHitContainsGenPion = np.zeros(1,dtype=bool)
 sharedHitContainsGenProton = np.zeros(1,dtype=bool)
-GenDeltaR =  np.zeros(1,dtype=float)
+GenDeltaR = np.zeros(1,dtype=float)
+totalADCcount = np.zeros(1,dtype=float)
 
 otree.Branch("trackPt",trackPt,"trackPt/D")
 otree.Branch("trackEta",trackEta,"trackEta/D")
@@ -36,6 +41,7 @@ otree.Branch("sharedHitContainsGenLambda", sharedHitContainsGenLambda, "sharedHi
 otree.Branch("sharedHitContainsGenPion", sharedHitContainsGenPion, "sharedHitContainsGenPion")
 otree.Branch("sharedHitContainsGenProton", sharedHitContainsGenProton, "sharedHitContainsGenProton")
 otree.Branch("GenDeltaR",GenDeltaR,"GenDeltaR/D")
+otree.Branch("totalADCcount",totalADCcount,"totalADCcount/D")
 
 def getPixelHist(pixels,gridSize):
     xmin = -1
@@ -44,9 +50,10 @@ def getPixelHist(pixels,gridSize):
     ymax = -1
     xavg = 0.
     yavg = 0.
+    global tot_adc
     tot_adc = 0.
     for x,y,adc in pixels:
-        #print x,y,adc
+        # print x,y,adc
         if x < xmin or xmin == -1:
             xmin = x
         if y < ymin or ymin == -1:
@@ -59,25 +66,32 @@ def getPixelHist(pixels,gridSize):
     xavg_int = int(round(xavg))
     yavg_int = int(round(yavg))
     hist = ROOT.TH2F("hist_%i" % iEntry,"hist_%i" % iEntry,gridSize,0,gridSize,gridSize,0,gridSize)
+    hist.SetDirectory(0)
     for x,y,adc in pixels:
-        #print (x-xavg_int),(y-ymin),adc
         hist.Fill(x-xavg_int+gridSize/2.,y-yavg_int+gridSize/2.,adc)
     if hist.Integral() > 0:
-       hist.Scale(1./hist.Integral())
+        # Save the total charge
+        totalADCcount[0] = hist.Integral()
+        # Normalize the charge
+        #hist.Scale(1./hist.Integral())
+        # Include the absolute charge
+        hist.Scale(1./10**4)
     else:
-       hist = ROOT.TH2F("hist_shared","hist_shared",gridSize,0,gridSize,gridSize,0,gridSize)
+        hist = ROOT.TH2F("hist_shared","hist_shared",gridSize,0,gridSize,gridSize,0,gridSize)
     return hist
 
 for iEntry in xrange(nentries):
-##for iEntry in xrange(1200000):
-#for iEntry in xrange(1200000,nentries):
-    if (iEntry % 1000 == 0): 
+    if (iEntry % 10000 == 0): 
         print "processing entry: ",iEntry
     tree.GetEntry(iEntry)
     pixels_shared = []
     pixels_pion = []
     pixels_proton = []
-    if len(tree.PionPixelHit_x)>0 and tree.PionPixelHitLayer==0 and iEntry%100==0:
+    
+    ### Fill Pion Non-Shared Hits ###
+    if ( len(tree.PionPixelHit_x)+len(tree.PionPixelHit_y) > 2 # eleminate single pixel events
+        and tree.PionPixelHitLayer==0 and tree.LambdaMass[0]>0 and tree.flightLength[0]<4. 
+        and tree.GenDeltaR.size()>0 and tree.GenDeltaR[0]<0.1 ):
         for i in xrange(len(tree.PionPixelHit_x)):
             pixels_pion.append((tree.PionPixelHit_x[i],tree.PionPixelHit_y[i],tree.PionPixelHit_adc[i]))
         hist = getPixelHist(pixels_pion,gridSize)
@@ -89,7 +103,11 @@ for iEntry in xrange(nentries):
         trackEta[0] = tree.TrkPi1eta[0]
         trackPhi[0] = tree.TrkPi1phi[0]
         otree.Fill()
-    if len(tree.ProtonPixelHit_x)>0 and tree.ProtonPixelHitLayer==0 and iEntry%100==0:
+            
+    ### Fill Proton Non-Shared Hits ###
+    if ( len(tree.ProtonPixelHit_x)+len(tree.ProtonPixelHit_y) > 2 # eleminate single pixel events
+        and tree.ProtonPixelHitLayer==0 and tree.LambdaMass[0]>0 and tree.flightLength[0]<4.
+        and tree.GenDeltaR.size()>0 and tree.GenDeltaR[0]<0.1 ):
         for i in xrange(len(tree.ProtonPixelHit_x)):
             pixels_proton.append((tree.ProtonPixelHit_x[i],tree.ProtonPixelHit_y[i],tree.ProtonPixelHit_adc[i]))
         hist = getPixelHist(pixels_proton,gridSize)
@@ -101,9 +119,13 @@ for iEntry in xrange(nentries):
         trackEta[0] = tree.TrkProtoneta[0]
         trackPhi[0] = tree.TrkProtonphi[0]
         otree.Fill()
-    if tree.LambdaMass[0] > 0 and len(tree.LambdaSharedHitPixelHits_x) > 0 and tree.LambdaSharedHitLayer[0]==0 and tree.flightLength[0]<4.:
+            
+    ### Fill Shared Hits ###
+    if ( len(tree.LambdaSharedHitPixelHits_x)+len(tree.LambdaSharedHitPixelHits_y) > 2 # eleminate single pixel events
+        and tree.LambdaSharedHitLayer[0]==0 and tree.LambdaMass[0]>0 and tree.flightLength[0]<4.
+        and tree.GenDeltaR.size()>0 and tree.GenDeltaR[0]<0.1 ):
         for i in xrange(len(tree.LambdaSharedHitPixelHits_x)):
-            pixels_shared.append((tree.LambdaSharedHitPixelHits_x[i],tree.LambdaSharedHitPixelHits_y[i],tree.LambdaSharedHitPixelHits_adc[i]))
+            pixels_shared.append((tree.LambdaSharedHitPixelHits_x[i], tree.LambdaSharedHitPixelHits_y[i], tree.LambdaSharedHitPixelHits_adc[i]))
         isSharedHit[0] = 1
         hist = getPixelHist(pixels_shared,gridSize)
         for i in xrange(gridSize):
@@ -127,7 +149,8 @@ for iEntry in xrange(nentries):
         sharedHitContainsGenProton[0] =  tree.sharedHitContainsGenProton[0]
         GenDeltaR[0] = tree.GenDeltaR[0] #dR between best gen lambda and reco lambda, good match is dR<0.1
         otree.Fill()
-    #dr = sqrt( pow((abs(tree.TrkProtonphi[0]-tree.TrkPi1phi[0])-(abs(tree.TrkProtonphi[0]-tree.TrkPi1phi[0])>3.14)*2*3.14),2) + pow((tree.TrkProtoneta[0]-tree.TrkPi1eta[0]),2) )
-    
+
 ofile.cd()
 otree.Write()
+ofile.Close()
+print "Completed addBranchesForNNTraining\n"

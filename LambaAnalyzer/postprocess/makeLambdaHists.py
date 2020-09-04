@@ -1,23 +1,26 @@
+print "Beginning makeLambdaHists"
 import ROOT
 import sys
 
-#ifile = ROOT.TFile(sys.argv[1])
-ofile = ROOT.TFile(sys.argv[2],"RECREATE")
-#ofile = ROOT.TFile("ofile.root","RECREATE")
-#tree = ifile.Get("analyzer/tree1")
+# Manually give i/o files below
+#ifile = '/uscms_data/d3/bbonham/TrackerProject/Input_for_Postprocess/output1.root'
+ofile = ROOT.TFile("output2.root","RECREATE")
 
-filechain = sys.argv[1].split(',')
+# OR Automatically give i/o files from arguments 
+ifile = sys.argv[1]
+#ofile = ROOT.TFile(sys.argv[2],"RECREATE")
+
+filechain = ifile.split(',')
 tree = ROOT.TChain("analyzer/tree1")
 for i in xrange(0,len(filechain)):
     if i >= len(filechain): break
     print "adding to chain: ",filechain[i]
     tree.Add(filechain[i])
-   
 otree = tree.CloneTree(0)
 
-nentries = tree.GetEntries()
-print "total entries to loop over: ",nentries
-#nentries = 100
+#nentries = tree.GetEntries()
+nentries = 10000
+print "Total entries to loop over: ",nentries
 
 curr_event = -1 # keep track of current event to remove lambda duplicates
 LambdaMasses = []
@@ -27,8 +30,8 @@ for iEntry in xrange(nentries):
     if (iEntry%10000 == 0): print "processing entry: ",iEntry
     #print tree.event_n,curr_event
     
-    # Skip entries with more than one event
-    if len(tree.nUniqueSimTracksInSharedHit)>1:
+    # Skip entries with more than one Lambda
+    if len(tree.nUniqueSimTracksInSharedHit)>1: 
         continue
 
     if tree.event_n != curr_event:
@@ -71,8 +74,6 @@ for iEntry in xrange(nentries):
     #otree.Fill()
 
 ofile.cd()
-otree.Write() 
-        
-
-
-
+otree.Write()
+ofile.Close()
+print "Completed makeLambdaHists\n"
