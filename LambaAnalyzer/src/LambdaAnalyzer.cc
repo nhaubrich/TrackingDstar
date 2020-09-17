@@ -684,7 +684,8 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 }
                 pionHitPixels = pixels_pi;
 
-                std::cout << "DeepCluster Evaluate Pion" << LambdaAnalyzer::DeepClusterEvaluate(pixels_pi) << std::endl;
+                std::cout << "DeepCluster Evaluate Pion" << std::endl;
+                LambdaAnalyzer::DeepClusterEvaluate(pixels_pi);
                 //    std::cout<<"pixels.size() = "<<pixels.size()<<std::endl;
                 //    std::cout<<"pixelhit->clusterProbability(0) = "<<pixelhit->clusterProbability(0)<<std::endl;
                 //    std::cout<<"pixelhit->clusterProbability(1) = "<<pixelhit->clusterProbability(1)<<std::endl;
@@ -1635,15 +1636,13 @@ float LambdaAnalyzer::DeepClusterEvaluate(std::vector<SiPixelCluster::Pixel> pix
     for(int x=0;x<20;x++){
         for(int y=0;y<20;y++){
             input_1.tensor<float, 4>()(0,x,y,0) = pixelImage[x][y];
-            std::cout << pixelImage[x][y] << " ";
+            //std::cout << pixelImage[x][y] << " ";
         }
-        std::cout << "" << std::endl;
+        //std::cout << "" << std::endl;
     }
  
 
-    std::cout << "Initialize input_2" << std::endl;
     tensorflow::Tensor input_2(tensorflow::DT_FLOAT, {1,2});
-    std::cout << "Define input_2" << std::endl;
     input_2.flat<float>().setZero();
     input_2.matrix<float>()(0,0)=0;
     input_2.matrix<float>()(0,1)=0;
@@ -1651,9 +1650,7 @@ float LambdaAnalyzer::DeepClusterEvaluate(std::vector<SiPixelCluster::Pixel> pix
     const std::vector<std::string> outputNames = {"Output/Softmax:0"};
     std::vector<tensorflow::Tensor> outputs;
     
-    std::cout << "Run" << std::endl;
     tensorflow::run(session, { {"input_1:0",input_1},{"input_2:0",input_2} },outputNames, &outputs);
-    std::cout << "tf ran" << std::endl;
     std::cout << "Eval: " << outputs[0].matrix<float>()(0,0) << std::endl;
     return 1;
 }
@@ -1670,7 +1667,6 @@ void LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,
     int y_centroid = 0;
 
     for (unsigned int k=0; k<pixels.size(); k++) {
-        std::cout << "this loop" << std::endl;
         SiPixelCluster::Pixel pixel = pixels[k];
         x_centroid += pixel.adc*pixel.x;
         y_centroid += pixel.adc*pixel.y;
@@ -1680,7 +1676,7 @@ void LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,
     y_centroid = (int) std::round((float) y_centroid/adc_tot );
 
     //Centroid is at (10,10), fill in pixels relative to this with normalized charge
-    std::cout << "pixels:" << std::endl;
+    //std::cout << "pixels:" << std::endl;
     for (unsigned int k=0; k<pixels.size(); k++) {
         SiPixelCluster::Pixel pixel = pixels[k];
 
@@ -1688,17 +1684,17 @@ void LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,
         int y_rel = pixel.y-y_centroid+10;
         std::cout << x_rel << " " << y_rel << " " << pixel.adc << std::endl;
         if( x_rel>=0 && x_rel<20 && y_rel>=0 && y_rel< 20 && pixel.adc>1e-8){
-            std::cout << "FILLING PIXEL " << x_rel << "," << y_rel << std::endl;
-            image[x_rel][y_rel] = (float) pixel.adc/adc_tot;
+            //std::cout << "FILLING PIXEL " << x_rel << "," << y_rel << std::endl;
+            image[y_rel][x_rel] = (float) pixel.adc/adc_tot;
         }
     }
-    std::cout << "after 'filling'" << std::endl;
-    for(int x=0;x<20;x++){
-        for(int y=0;y<20;y++){
-            std::cout << image[x][y] << " ";
-        }
-        std::cout << std::endl;
-    }
+    //std::cout << "after 'filling'" << std::endl;
+    //for(int x=0;x<20;x++){
+    //    for(int y=0;y<20;y++){
+    //        std::cout << image[x][y] << " ";
+    //    }
+    //    std::cout << std::endl;
+    //}
 }
 //void LambdaAnalyzer::getFromEvt(edm::Event& theEvent,edm::Handle<TrackCollection>& theTCollection) {
 //    theEvent.getByLabel("generalTracks",theTCollection ); 

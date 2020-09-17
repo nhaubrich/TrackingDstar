@@ -19,6 +19,7 @@ sess = tf.Session()
 from keras import backend as K
 K.set_session(sess)
 
+
 #define model
 def DefineModel(size=20):
 
@@ -68,14 +69,14 @@ def GetData(filename,testTrainFrac=.5):
     df = pd.read_hdf(filename)
 
     #SELECTIONS
-    df = df[(df["GenDeltaR"]<0.1) & (df["nUniqueSimTracksInSharedHit"]>-1)]
+    #df = df[(df["GenDeltaR"]<0.1) & (df["nUniqueSimTracksInSharedHit"]>-1)]
     
     #need to reindex for some reason...
     df = df.reindex(index=np.arange(df.shape[0]),columns=df.keys())
-    #drop single pixel images
-    pixel_columns = [key for key in df.keys() if "pixel_" in key]
-    pixelIsFilled = df[pixel_columns]>0
-    df = df[pixelIsFilled.sum(axis=1)>1]
+    ##drop single pixel images
+    #pixel_columns = [key for key in df.keys() if "pixel_" in key]
+    #pixelIsFilled = df[pixel_columns]>0
+    #df = df[pixelIsFilled.sum(axis=1)>1]
     
     print(sum(df["nUniqueSimTracksInSharedHit"]>1),sum(df["nUniqueSimTracksInSharedHit"]<=1))
 
@@ -99,7 +100,6 @@ def GetData(filename,testTrainFrac=.5):
 
     return train_data, test_data, train_labels, test_labels
     
-
 #train model
 def TrainModel(classifier,data,labels,epochs=10,validation_split=0.1):
     classifier.fit(data, labels, epochs=epochs, validation_split=validation_split)
@@ -142,15 +142,32 @@ def EvaluateModel(classifier,data,labels):
     MakeROC(classifier,discriminants,labels)
     return discriminants[:,1]
 
+def SaveScores(filename,classifier,classifier_name="score"):
+    from keras.utils import to_categorical
+    df = pd.read_hdf(filename)
+    images = to_image(df)
+    print(df.shape)
+    otherVariables = np.zeros((df.shape[0],2))
+    inputs = [images,otherVariables]
+    discriminants = classifier.predict(inputs)[:,1]
+    print(discriminants.shape)
+
+    df[classifier_name] = discriminants
+    df.to_hdf("evaluated_"+filename,"eval")
+
 
 def Run():
     #train_X, test_X, train_Y, test_Y = GetData("/eos/user/h/hboucham/SWAN_projects/MergedHits/output_final20.h5")#"RelVal_230720.h5"
-    train_X, test_X, train_Y, test_Y = GetData("output_final20.h5")#"RelVal_230720.h5"
+    #train_X, test_X, train_Y, test_Y = GetData("/uscms_data/d3/njh/MergedHits/output_final20.h5")#"RelVal_230720.h5"
+    train_X, test_X, train_Y, test_Y = GetData("output_final.h5")#"RelVal_230720.h5"
     model = DefineModel()
     TrainModel(model,train_X,train_Y,epochs=10)
     SaveModel(model)
     train_probs = EvaluateModel(model,train_X,train_Y)
     test_probs = EvaluateModel(model,test_X,test_Y)
     PlotDiscriminants(train_probs,train_Y, test_probs,test_Y)
+
+    SaveScores("output_final.h5",model)
+    
 
 Run()
