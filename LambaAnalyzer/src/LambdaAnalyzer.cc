@@ -71,7 +71,7 @@
 #include "DataFormats/Common/interface/DetSetVector.h"
 #include "SimDataFormats/TrackerDigiSimLink/interface/PixelDigiSimLink.h"
 #include "DataFormats/SiPixelDigi/interface/PixelDigi.h"
-
+#include "PhysicsTools/TensorFlow/interface/TensorFlow.h"
 
 typedef std::pair<uint32_t, EncodedEventId> SimHitIdpr;
 
@@ -94,6 +94,8 @@ class LambdaAnalyzer : public edm::EDAnalyzer {
     void initialize();
     int nSharedPixelLayerHits(reco::TransientTrack *track1, reco::TransientTrack *track2);
     void getSimTracksFromPixelCluster(std::vector<SiPixelCluster::Pixel> cluster, const TrackingRecHit* hit, std::vector<unsigned int> & uniqueSimTrackIds, std::vector<int> & simTrackPDGIds);
+    float DeepClusterEvaluate(std::vector<SiPixelCluster::Pixel> pixels);
+    float MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,float (&image)[20][20]);
 
     //      void getFromEvt(edm::Event& theEvent,edm::Handle<Base::TrackCollection>& theTCollection); 
     // ----------member data ---------------------------
@@ -238,6 +240,7 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
     m_pi=0.13957018;
     m_K=0.493677;
     m_p = 0.9382720813;
+
 
     //clean vectors and vars
     initialize();
@@ -673,8 +676,15 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
             if(pixelhit_pi!=nullptr && h1[0]->isValid() && LambdaMass.size()==0) {
                 // only fill for the first row in the event since we can't have a vector of vectors
                 std::vector<SiPixelCluster::Pixel> pixels_pi(pixelhit_pi->cluster()->pixels());
+
+                std::cout << "pixels_pi" << std::endl;
+                for (unsigned int k=0; k<pixels_pi.size(); k++) {
+                    SiPixelCluster::Pixel pixel = pixels_pi[k];
+                    std::cout << pixel.x << " " << pixel.y << " " << pixel.adc << std::endl;
+                }
                 pionHitPixels = pixels_pi;
 
+                std::cout << "DeepCluster Evaluate Pion: " << LambdaAnalyzer::DeepClusterEvaluate(pixels_pi) << std::endl;
                 //    std::cout<<"pixels.size() = "<<pixels.size()<<std::endl;
                 //    std::cout<<"pixelhit->clusterProbability(0) = "<<pixelhit->clusterProbability(0)<<std::endl;
                 //    std::cout<<"pixelhit->clusterProbability(1) = "<<pixelhit->clusterProbability(1)<<std::endl;
@@ -1063,6 +1073,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     uniqueProtonSimTrackPDGIds.push_back(uniqueSimTrackProtonPDGIds);
                     uniqueProtonSimTrackIds.push_back(uniqueSimTracksInProtonHit);
 
+                    //std::cout << "DeepCluster Evaluate Pion" << LambdaAnalyzer::DeepClusterEvaluate(pionHitPixels) << std::endl;
                 }
 
             }
@@ -1597,6 +1608,66 @@ void LambdaAnalyzer::getSimTracksFromPixelCluster(std::vector<SiPixelCluster::Pi
         } 
 
     }
+}
+
+float LambdaAnalyzer::DeepClusterEvaluate(std::vector<SiPixelCluster::Pixel> pixels){
+    float pixelImage[20][20];
+    float reduced_adc_tot = LambdaAnalyzer::MakeClusterImage(pixels,pixelImage); 
+    tensorflow::GraphDef* graphDef = tensorflow::loadGraphDef("../ml/DeepCluster.pb");
+    tensorflow::Session* session = tensorflow::createSession(graphDef);
+
+    tensorflow::Tensor input_1(tensorflow::DT_FLOAT, {1,20,20,1});
+    input_1.flat<float>().setZero();
+    //input_1.tensor<float, 4>()(0,10,10,0) = 1.0;
+    for(int x=0;x<20;x++){
+        for(int y=0;y<20;y++){
+            input_1.tensor<float, 4>()(0,x,y,0) = pixelImage[x][y];
+        }
+    }
+
+    tensorflow::Tensor input_2(tensorflow::DT_FLOAT, {1,1});
+    input_2.matrix<float>()(0,0)=reduced_adc_tot;
+
+    const std::vector<std::string> outputNames = {"Output/Softmax:0"};
+    std::vector<tensorflow::Tensor> outputs;
+    
+    tensorflow::run(session, { {"input_1:0",input_1},{"input_2:0",input_2} },outputNames, &outputs);
+    return outputs[0].matrix<float>()(0,0);
+}
+float LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,float (& image)[20][20]){
+    for(int x=0;x<20;x++){
+        for(int y=0;y<20;y++){
+            image[x][y]=0.0;
+        }
+    }
+
+    int adc_tot = 0;
+    int x_centroid = 0;
+    int y_centroid = 0;
+
+    for (unsigned int k=0; k<pixels.size(); k++) {
+        SiPixelCluster::Pixel pixel = pixels[k];
+        x_centroid += pixel.adc*pixel.x;
+        y_centroid += pixel.adc*pixel.y;
+        adc_tot += pixel.adc;
+    }
+    x_centroid = (int) std::round((float) x_centroid/adc_tot );
+    y_centroid = (int) std::round((float) y_centroid/adc_tot );
+
+    //Centroid is at (10,10), fill in pixels relative to this with normalized charge
+    //std::cout << "pixels:" << std::endl;
+    for (unsigned int k=0; k<pixels.size(); k++) {
+        SiPixelCluster::Pixel pixel = pixels[k];
+
+        int x_rel = pixel.x-x_centroid+10;
+        int y_rel = pixel.y-y_centroid+10;
+        std::cout << x_rel << " " << y_rel << " " << pixel.adc << std::endl;
+        if( x_rel>=0 && x_rel<20 && y_rel>=0 && y_rel< 20 && pixel.adc>1e-8){
+            //std::cout << "FILLING PIXEL " << x_rel << "," << y_rel << std::endl;
+            image[y_rel][x_rel] = (float) pixel.adc/adc_tot;
+        }
+    }
+    return (float) adc_tot/1.0e4;
 }
 //void LambdaAnalyzer::getFromEvt(edm::Event& theEvent,edm::Handle<TrackCollection>& theTCollection) {
 //    theEvent.getByLabel("generalTracks",theTCollection ); 

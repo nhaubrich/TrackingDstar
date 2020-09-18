@@ -7,7 +7,7 @@ import ROOT
 import sys
 
 # Manually give i/o files below
-ifile = '/uscms_data/d3/bbonham/TrackerProject/Input_for_Postprocess/output1.root'
+ifile = sys.argv[1]
 ofile = ROOT.TFile("output2.root","RECREATE")
 # Automatically give i/o files from arguments 
 #ifile = sys.argv[1]
@@ -160,9 +160,9 @@ def getPixelHist(pixels,gridSize):
         # Save the total charge
         totalADCcount[0] = hist.Integral()
         # Normalize the charge
-        #hist.Scale(1./hist.Integral())
+        hist.Scale(1./hist.Integral())
         # Include the absolute charge
-        hist.Scale(1./10**4)
+        #hist.Scale(1./10**4)
     else:
         hist = ROOT.TH2F("hist_shared","hist_shared",gridSize,0,gridSize,gridSize,0,gridSize)
     return hist
@@ -259,7 +259,7 @@ ofile = "output_final.h5"
 #ofile = sys.argv[2]
 
 #cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','sharedHitContainsGenPion','sharedHitContainsGenProton','sharedHitContainsGenLambda','GenDeltaR']
-cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','GenDeltaR','totalADCcount']
+cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','GenDeltaR','totalADCcount','event_n']
 for i in xrange(20*20):
     cols.append('pixel_%i' % i)
     
