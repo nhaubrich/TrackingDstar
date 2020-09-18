@@ -28,10 +28,11 @@ def DefineModel(size=20):
     from keras.models import Model
     size=20
     inputClusterImages = Input(shape=(size,size,1))
-    inputHitVariables = Input(shape=(2,))
+    inputHitVariables = Input(shape=(1,))
 
     #CNN on cluster images
     CNN = Conv2D(32, kernel_size=(4,4),padding='same',activation='relu')(inputClusterImages)
+    CNN = Conv2D(8, kernel_size=(4,4),padding='same',activation='relu')(CNN)
     CNN = Conv2D(4, kernel_size=(4,4),padding='same',activation='relu')(CNN)
     CNN = Flatten()(CNN)
 
@@ -39,6 +40,7 @@ def DefineModel(size=20):
     
     #NN on the Hit variables
     NN = Dense(5,activation='relu')(inputHitVariables)
+    NN = Dense(5,activation='relu')(NN)
     NN = Model(inputs=inputHitVariables,outputs=NN)
 
     combined_outputs = concatenate([CNN.output,NN.output])
@@ -62,23 +64,21 @@ def to_image(df,size=20):
     pixels = ["pixel_{0}".format(i) for i in range(size**2)]
     return  np.expand_dims(np.expand_dims(df[pixels], axis=-1).reshape(-1,size,size), axis=-1)
 
+def ConvertH5ModelToPB(filename):
+    K.set_session(sess)
+    sess.run(tf.global_variables_initializer())
+    mod = tf.keras.models.load_model(filename)
+    SaveModel(mod)
 
 #get data
 def GetData(filename,testTrainFrac=.5):
     from keras.utils import to_categorical
     df = pd.read_hdf(filename)
 
-    #SELECTIONS
-    #df = df[(df["GenDeltaR"]<0.1) & (df["nUniqueSimTracksInSharedHit"]>-1)]
-    
     #need to reindex for some reason...
     df = df.reindex(index=np.arange(df.shape[0]),columns=df.keys())
-    ##drop single pixel images
-    #pixel_columns = [key for key in df.keys() if "pixel_" in key]
-    #pixelIsFilled = df[pixel_columns]>0
-    #df = df[pixelIsFilled.sum(axis=1)>1]
     
-    print(sum(df["nUniqueSimTracksInSharedHit"]>1),sum(df["nUniqueSimTracksInSharedHit"]<=1))
+    print(sum(df["isSharedHit"]==1),sum(df["isSharedHit"]!=1))
 
     df_train = df.sample(frac=testTrainFrac)
     df_test = df.drop(df_train.index)
@@ -86,21 +86,20 @@ def GetData(filename,testTrainFrac=.5):
     images_train = to_image(df_train)
     images_test = to_image(df_test)
 
-    otherVariables_train = df_train[["trackPt","trackEta"]]
-    otherVariables_test = df_test[["trackPt","trackEta"]]
+    otherVariables_train = df_train["totalADCcount"]/1e4
+    otherVariables_test = df_test["totalADCcount"]/1e4
     
     train_data = [images_train, otherVariables_train]
     test_data = [images_test, otherVariables_test]
     
-    train_labels = to_categorical(df_train["nUniqueSimTracksInSharedHit"]>1)
-    test_labels = to_categorical(df_test["nUniqueSimTracksInSharedHit"]>1)
+    train_labels = to_categorical(df_train["isSharedHit"]==1)
+    test_labels = to_categorical(df_test["isSharedHit"]==1)
 
     print("training data: s={}, b={}".format(sum(train_labels[:,1]),sum(train_labels[:,0])))
     print("testing data: s={}, b={}".format(sum(test_labels[:,1]),sum(test_labels[:,0])))
 
     return train_data, test_data, train_labels, test_labels
     
-#train model
 def TrainModel(classifier,data,labels,epochs=10,validation_split=0.1):
     classifier.fit(data, labels, epochs=epochs, validation_split=validation_split)
 
@@ -147,7 +146,7 @@ def SaveScores(filename,classifier,classifier_name="score"):
     df = pd.read_hdf(filename)
     images = to_image(df)
     print(df.shape)
-    otherVariables = np.zeros((df.shape[0],2))
+    otherVariables = np.zeros((df.shape[0],1))
     inputs = [images,otherVariables]
     discriminants = classifier.predict(inputs)[:,1]
     print(discriminants.shape)
@@ -157,17 +156,14 @@ def SaveScores(filename,classifier,classifier_name="score"):
 
 
 def Run():
-    #train_X, test_X, train_Y, test_Y = GetData("/eos/user/h/hboucham/SWAN_projects/MergedHits/output_final20.h5")#"RelVal_230720.h5"
-    #train_X, test_X, train_Y, test_Y = GetData("/uscms_data/d3/njh/MergedHits/output_final20.h5")#"RelVal_230720.h5"
-    train_X, test_X, train_Y, test_Y = GetData("output_final.h5")#"RelVal_230720.h5"
+    train_X, test_X, train_Y, test_Y = GetData("/uscms_data/d3/bbonham/TrackerProject/Output_of_Postprocess/AllHits/NormalizedCharge/output_final.h5")
     model = DefineModel()
-    TrainModel(model,train_X,train_Y,epochs=10)
+    TrainModel(model,train_X,train_Y,epochs=30)
     SaveModel(model)
     train_probs = EvaluateModel(model,train_X,train_Y)
     test_probs = EvaluateModel(model,test_X,test_Y)
     PlotDiscriminants(train_probs,train_Y, test_probs,test_Y)
 
-    SaveScores("output_final.h5",model)
+    #SaveScores("/uscms_data/d3/bbonham/TrackerProject/Output_of_Postprocess/AllHits/NormalizedCharge/output_final.h5",model)
     
-
 Run()

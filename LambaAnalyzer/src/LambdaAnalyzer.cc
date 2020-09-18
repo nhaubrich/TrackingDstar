@@ -95,7 +95,7 @@ class LambdaAnalyzer : public edm::EDAnalyzer {
     int nSharedPixelLayerHits(reco::TransientTrack *track1, reco::TransientTrack *track2);
     void getSimTracksFromPixelCluster(std::vector<SiPixelCluster::Pixel> cluster, const TrackingRecHit* hit, std::vector<unsigned int> & uniqueSimTrackIds, std::vector<int> & simTrackPDGIds);
     float DeepClusterEvaluate(std::vector<SiPixelCluster::Pixel> pixels);
-    void MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,float (&image)[20][20]);
+    float MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,float (&image)[20][20]);
 
     //      void getFromEvt(edm::Event& theEvent,edm::Handle<Base::TrackCollection>& theTCollection); 
     // ----------member data ---------------------------
@@ -684,8 +684,7 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 }
                 pionHitPixels = pixels_pi;
 
-                std::cout << "DeepCluster Evaluate Pion" << std::endl;
-                LambdaAnalyzer::DeepClusterEvaluate(pixels_pi);
+                std::cout << "DeepCluster Evaluate Pion: " << LambdaAnalyzer::DeepClusterEvaluate(pixels_pi) << std::endl;
                 //    std::cout<<"pixels.size() = "<<pixels.size()<<std::endl;
                 //    std::cout<<"pixelhit->clusterProbability(0) = "<<pixelhit->clusterProbability(0)<<std::endl;
                 //    std::cout<<"pixelhit->clusterProbability(1) = "<<pixelhit->clusterProbability(1)<<std::endl;
@@ -1612,55 +1611,35 @@ void LambdaAnalyzer::getSimTracksFromPixelCluster(std::vector<SiPixelCluster::Pi
 }
 
 float LambdaAnalyzer::DeepClusterEvaluate(std::vector<SiPixelCluster::Pixel> pixels){
-    std::cout << "make image" << std::endl;
     float pixelImage[20][20];
-    LambdaAnalyzer::MakeClusterImage(pixels,pixelImage); 
-
-
-
-
-    std::cout << "Load graph" << std::endl;
-    tensorflow::GraphDef* graphDef = tensorflow::loadGraphDef("../ML/DeepCluster.pb");
-    
-    std::cout << "Make session" << std::endl;
+    float reduced_adc_tot = LambdaAnalyzer::MakeClusterImage(pixels,pixelImage); 
+    tensorflow::GraphDef* graphDef = tensorflow::loadGraphDef("../ml/DeepCluster.pb");
     tensorflow::Session* session = tensorflow::createSession(graphDef);
 
-    
-    std::cout << "Initialize input_1" << std::endl;
     tensorflow::Tensor input_1(tensorflow::DT_FLOAT, {1,20,20,1});
-    std::cout << "Define input_1" << std::endl;
-
-
     input_1.flat<float>().setZero();
     //input_1.tensor<float, 4>()(0,10,10,0) = 1.0;
     for(int x=0;x<20;x++){
         for(int y=0;y<20;y++){
             input_1.tensor<float, 4>()(0,x,y,0) = pixelImage[x][y];
-            //std::cout << pixelImage[x][y] << " ";
         }
-        //std::cout << "" << std::endl;
     }
- 
 
-    tensorflow::Tensor input_2(tensorflow::DT_FLOAT, {1,2});
-    input_2.flat<float>().setZero();
-    input_2.matrix<float>()(0,0)=0;
-    input_2.matrix<float>()(0,1)=0;
+    tensorflow::Tensor input_2(tensorflow::DT_FLOAT, {1,1});
+    input_2.matrix<float>()(0,0)=reduced_adc_tot;
 
     const std::vector<std::string> outputNames = {"Output/Softmax:0"};
     std::vector<tensorflow::Tensor> outputs;
     
     tensorflow::run(session, { {"input_1:0",input_1},{"input_2:0",input_2} },outputNames, &outputs);
-    std::cout << "Eval: " << outputs[0].matrix<float>()(0,0) << std::endl;
-    return 1;
+    return outputs[0].matrix<float>()(0,0);
 }
-void LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,float (& image)[20][20]){
+float LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,float (& image)[20][20]){
     for(int x=0;x<20;x++){
         for(int y=0;y<20;y++){
             image[x][y]=0.0;
         }
     }
-
 
     int adc_tot = 0;
     int x_centroid = 0;
@@ -1688,13 +1667,7 @@ void LambdaAnalyzer::MakeClusterImage(std::vector<SiPixelCluster::Pixel> pixels,
             image[y_rel][x_rel] = (float) pixel.adc/adc_tot;
         }
     }
-    //std::cout << "after 'filling'" << std::endl;
-    //for(int x=0;x<20;x++){
-    //    for(int y=0;y<20;y++){
-    //        std::cout << image[x][y] << " ";
-    //    }
-    //    std::cout << std::endl;
-    //}
+    return (float) adc_tot/1.0e4;
 }
 //void LambdaAnalyzer::getFromEvt(edm::Event& theEvent,edm::Handle<TrackCollection>& theTCollection) {
 //    theEvent.getByLabel("generalTracks",theTCollection ); 
