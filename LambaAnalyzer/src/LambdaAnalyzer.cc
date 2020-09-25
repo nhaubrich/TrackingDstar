@@ -1022,6 +1022,13 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                 }
             }
 
+
+            //Splitting Cluster Section
+            SiPixelCluster::PixelPos newpix(1,1);
+            PixelClusterizerBase::AccretionCluster acluster;
+            acluster.add(newpix, 10);
+
+
             //Merged Truth Section
             //if it's a shared hit, loop through all the pixels (check hit validity!)
             //loop through links associated with that hit, and see if any links have the right pixel
