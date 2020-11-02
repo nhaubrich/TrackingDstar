@@ -211,7 +211,9 @@ process.analyzer = cms.EDAnalyzer('LambdaAnalyzer',
     BeamSpot = cms.untracked.InputTag('offlineBeamSpot'),
     trackCandidates = cms.untracked.InputTag('generalTracks'),
     PixelDigiSimLinkVector = cms.InputTag("simSiPixelDigis"),
-    SimTracks = cms.InputTag("g4SimHits")
+    SimTracks = cms.InputTag("g4SimHits"),
+    pixelClusters = cms.InputTag("hltSiPixelClusters")
+
     #PixelDigiSimLinkVector = cms.InputTag("mixData","PixelDigiSimLink"),
 )
 

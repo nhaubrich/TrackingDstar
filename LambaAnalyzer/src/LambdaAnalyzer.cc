@@ -28,6 +28,7 @@
 
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
+#include "Geometry/TrackerGeometryBuilder/interface/PixelGeomDetUnit.h"
 #include "Geometry/Records/interface/TrackerDigiGeometryRecord.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h" 
 #include "TrackingTools/Records/interface/TrackingComponentsRecord.h" 
@@ -59,6 +60,7 @@
 #include "DataFormats/Common/interface/OneToManyWithQualityGeneric.h"
 
 #include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
+#include "DataFormats/DetId/interface/DetId.h"
 
 #include "FWCore/Framework/interface/stream/EDProducer.h"
 #include "RecoTracker/TrackProducer/interface/KfTrackProducerBase.h"
@@ -72,6 +74,9 @@
 #include "SimDataFormats/TrackerDigiSimLink/interface/PixelDigiSimLink.h"
 #include "DataFormats/SiPixelDigi/interface/PixelDigi.h"
 #include "PhysicsTools/TensorFlow/interface/TensorFlow.h"
+#include "RecoLocalTracker/SiPixelClusterizer/plugins/PixelClusterizerBase.h"
+#include "RecoLocalTracker/SiPixelRecHits/interface/PixelCPEBase.h"
+
 
 typedef std::pair<uint32_t, EncodedEventId> SimHitIdpr;
 
@@ -202,6 +207,11 @@ class LambdaAnalyzer : public edm::EDAnalyzer {
     edm::EDGetTokenT<TrackingVertexCollection> TrackingVertexCollT_;
     //Hit matching
     edm::EDGetTokenT<edm::DetSetVector<PixelDigiSimLink> > pdslCollT_;
+
+
+    edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster>> pixelClustersCollT_;
+
+
 };
 
 LambdaAnalyzer::LambdaAnalyzer(const edm::ParameterSet& iConfig):
@@ -228,6 +238,7 @@ LambdaAnalyzer::LambdaAnalyzer(const edm::ParameterSet& iConfig):
     TrackingVertexCollT_ = consumes<TrackingVertexCollection>(iConfig.getParameter<edm::InputTag>("trackingParticles") );
     //trackerHitAssociatorConfig_(iConfig, consumesCollector());
     pdslCollT_ = consumes<edm::DetSetVector<PixelDigiSimLink> >(iConfig.getParameter<edm::InputTag>("PixelDigiSimLinkVector"));
+    pixelClustersCollT_ = consumes<edmNew::DetSetVector<SiPixelCluster> >(iConfig.getParameter<edm::InputTag>("pixelClusters"));
 }
 
 LambdaAnalyzer::~LambdaAnalyzer(){}
@@ -345,6 +356,7 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
     //Handle<TrackVertexAssMap> assomap;
     //iEvent.getByLabel("Tracks2Vertex",assomap); 
     /////iEvent.getByToken(T2VCollT_, assomap);
+
 
     //////nPV = assomap->size();
     nPV = recVtxs->size();
@@ -1021,6 +1033,68 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     }
                 }
             }
+
+            //Splitting Cluster Section
+            int dbg = 0;
+            std::cout << dbg << std::endl;dbg++;
+            SiPixelCluster::PixelPos newpix(1,1);
+            PixelClusterizerBase::AccretionCluster acluster;
+            acluster.add(newpix, 10);
+            SiPixelCluster newCluster(acluster.isize,acluster.adc,acluster.x,acluster.y,acluster.xmin,acluster.ymin);
+
+            std::cout << dbg << std::endl;dbg++;
+            //geometry for splitting hits
+            edm::ESHandle<TrackerGeometry> geom;
+            iSetup.get<TrackerDigiGeometryRecord>().get( geom );
+
+            std::cout << dbg << std::endl;dbg++;
+            //CPE (cluster position estimator) object
+            edm::ESHandle<PixelClusterParameterEstimator> hCPE;
+            std::string cpeName_ = "PixelCPEGeneric"; //Or PixelCPETemplateReco? See https://twiki.cern.ch/twiki/bin/view/CMS/PixelErrorParameterization  //conf_.getParameter<std::string>("CPE");
+            std::cout << dbg << std::endl;dbg++;
+            
+            iSetup.get<TkPixelCPERecord>().get(cpeName_,hCPE);
+            PixelCPEBase const *cpe_ = dynamic_cast< const PixelCPEBase* >(&(*hCPE));
+
+            std::cout << dbg << std::endl;dbg++;
+
+            //Get existing Cluster collection (needed for clusterRef?)
+            Handle<edmNew::DetSetVector<SiPixelCluster> > pixelClustersOld;
+            iEvent.getByToken(pixelClustersCollT_,pixelClustersOld); 
+            //iEvent.getByToken(pixelClustersNew_, pixelClustersNew);
+
+            if(pixelhit_pi!=nullptr) {
+                //DetId detIdObject(pixelhit_pi->geographicalId());//FIXME change pixelhit_pi to the actual source hit
+                DetId detIdObject = pixelhit_pi->geographicalId();//FIXME change pixelhit_pi to the actual source hit
+                std::cout << dbg << std::endl;dbg++;
+                const GeomDetUnit* genericDet = geom->idToDetUnit(detIdObject);
+                std::cout << dbg << std::endl;dbg++;
+                const PixelGeomDetUnit* pixDet = dynamic_cast<const PixelGeomDetUnit*>(genericDet);
+                std::cout << dbg << std::endl;dbg++;
+                assert(pixDet);
+                std::cout << dbg << std::endl;dbg++;
+                
+                //Now we're ready for the hit-ification
+                std::tuple<LocalPoint, LocalError,SiPixelRecHitQuality::QualWordType> tuple = cpe_->getParameters( newCluster, *genericDet );
+                std::cout << dbg << std::endl;dbg++;
+                LocalPoint lp( std::get<0>(tuple) );
+                std::cout << dbg << std::endl;dbg++;
+                LocalError le( std::get<1>(tuple) );
+                std::cout << dbg << std::endl;dbg++;
+                SiPixelRecHitQuality::QualWordType rqw( std::get<2>(tuple) );
+                std::cout << dbg << std::endl;dbg++;
+               
+
+                edm::Handle<edmNew::DetSetVector<SiPixelCluster> >  newClusters;
+                std::cout << dbg << std::endl;dbg++;
+                edm::Ref< edmNew::DetSetVector<SiPixelCluster>, SiPixelCluster > newClusterRef = edmNew::makeRefTo( pixelClustersOld, &newCluster);
+                std::cout << dbg << std::endl;dbg++;
+                SiPixelRecHit hit( lp, le, rqw, *genericDet, newClusterRef);
+                std::cout << dbg << std::endl;dbg++;
+            }
+
+
+
 
             //Merged Truth Section
             //if it's a shared hit, loop through all the pixels (check hit validity!)
