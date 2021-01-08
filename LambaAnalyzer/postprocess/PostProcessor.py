@@ -7,7 +7,11 @@ import ROOT
 import sys
 
 # Manually give i/o files below
+<<<<<<< HEAD
 ifile = sys.argv[1]
+=======
+ifile = '/uscms_data/d3/bbonham/TrackerProject/Input_for_Postprocess/output1.root'
+>>>>>>> 609533069cb6d5f794681162fa650d448c91d136
 ofile = ROOT.TFile("output2.root","RECREATE")
 # Automatically give i/o files from arguments 
 #ifile = sys.argv[1]
@@ -160,9 +164,15 @@ def getPixelHist(pixels,gridSize):
         # Save the total charge
         totalADCcount[0] = hist.Integral()
         # Normalize the charge
+<<<<<<< HEAD
         hist.Scale(1./hist.Integral())
         # Include the absolute charge
         #hist.Scale(1./10**4)
+=======
+        #hist.Scale(1./hist.Integral())
+        # Include the absolute charge
+        hist.Scale(1./10**4)
+>>>>>>> 609533069cb6d5f794681162fa650d448c91d136
     else:
         hist = ROOT.TH2F("hist_shared","hist_shared",gridSize,0,gridSize,gridSize,0,gridSize)
     return hist
@@ -259,7 +269,11 @@ ofile = "output_final.h5"
 #ofile = sys.argv[2]
 
 #cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','sharedHitContainsGenPion','sharedHitContainsGenProton','sharedHitContainsGenLambda','GenDeltaR']
+<<<<<<< HEAD
 cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','GenDeltaR','totalADCcount','event_n']
+=======
+cols = ['isSharedHit','trackPt','trackEta','trackPhi','nUniqueSimTracksInSharedHit','GenDeltaR','totalADCcount']
+>>>>>>> 609533069cb6d5f794681162fa650d448c91d136
 for i in xrange(20*20):
     cols.append('pixel_%i' % i)
     
@@ -271,4 +285,8 @@ df.to_hdf(ofile,key='df',mode='w',encoding='utf-8')
 
 print "Completed ConverRootToPandas\n"
 
+<<<<<<< HEAD
 print "POSTPROCESS COMPLETE"
+=======
+print "POSTPROCESS COMPLETE"
+>>>>>>> 609533069cb6d5f794681162fa650d448c91d136

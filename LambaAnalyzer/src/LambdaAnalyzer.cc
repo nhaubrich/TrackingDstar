@@ -72,6 +72,9 @@
 #include "SimDataFormats/TrackerDigiSimLink/interface/PixelDigiSimLink.h"
 #include "DataFormats/SiPixelDigi/interface/PixelDigi.h"
 #include "PhysicsTools/TensorFlow/interface/TensorFlow.h"
+//Cluster Splitting
+#include "RecoLocalTracker/SiPixelClusterizer/plugins/PixelClusterizerBase.h"
+
 
 typedef std::pair<uint32_t, EncodedEventId> SimHitIdpr;
 
