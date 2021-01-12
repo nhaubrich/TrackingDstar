@@ -1,4 +1,9 @@
 # MergedHits
+=======
+# TrackingDstar
+
+# Lambda Merged Analysis
+
 Identify and split merged hits in the CMS Pixel Tracker
 
 # Analyzer + Notebook setup instruction
@@ -9,6 +14,8 @@ Identify and split merged hits in the CMS Pixel Tracker
 	- scram list (gives you list of CMSSW and check compatibility with your current architecture).
 	- echo $SCRAM_ARCH (outputs: 'slc6_amd64_gcc476' for me, not compatible with the CMSSW environment I want to use (10_4_0), so I change architecture).
  
+=======
+
 - If using CSH: Setenv SCRAM_ARCH slc6_amd64_gcc700 . If using BASH: SCRAM_ARCH=newarchictecture
 - export SCRAM_ARCH
 	- echo $SCRAM_ARCH (should output: 'slc6_amd64_gcc700').
@@ -88,43 +95,3 @@ Instructions for generating $\Lambda$ gun events using pythia.
     $ vim myLambdaGun_cfi.py
 11) Generate a RAW .root file and a RECO .root file with 10 events. You'll may need to alter the options below to suit your needs.
     $ cmsDriver.py myLambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
