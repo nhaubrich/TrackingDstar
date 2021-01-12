@@ -72,6 +72,9 @@
 #include "SimDataFormats/TrackerDigiSimLink/interface/PixelDigiSimLink.h"
 #include "DataFormats/SiPixelDigi/interface/PixelDigi.h"
 #include "PhysicsTools/TensorFlow/interface/TensorFlow.h"
+//Cluster Splitting
+#include "RecoLocalTracker/SiPixelClusterizer/plugins/PixelClusterizerBase.h"
+
 
 typedef std::pair<uint32_t, EncodedEventId> SimHitIdpr;
 
@@ -1021,6 +1024,13 @@ void LambdaAnalyzer::loop(const edm::Event& iEvent, const edm::EventSetup& iSetu
                     }
                 }
             }
+
+
+            //Splitting Cluster Section
+            SiPixelCluster::PixelPos newpix(1,1);
+            PixelClusterizerBase::AccretionCluster acluster;
+            acluster.add(newpix, 10);
+
 
             //Merged Truth Section
             //if it's a shared hit, loop through all the pixels (check hit validity!)

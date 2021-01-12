@@ -1,6 +1,9 @@
+# MergedHits
+=======
 # TrackingDstar
 
 # Lambda Merged Analysis
+
 Identify and split merged hits in the CMS Pixel Tracker
 
 # Analyzer + Notebook setup instruction
@@ -10,6 +13,8 @@ Identify and split merged hits in the CMS Pixel Tracker
 	- source /cvmfs/cms.cern.ch/cmsset_default.csh (or sh for bash).
 	- scram list (gives you list of CMSSW and check compatibility with your current architecture).
 	- echo $SCRAM_ARCH (outputs: 'slc6_amd64_gcc476' for me, not compatible with the CMSSW environment I want to use (10_4_0), so I change architecture).
+ 
+=======
 
 - If using CSH: Setenv SCRAM_ARCH slc6_amd64_gcc700 . If using BASH: SCRAM_ARCH=newarchictecture
 - export SCRAM_ARCH
