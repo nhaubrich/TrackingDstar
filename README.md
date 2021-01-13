@@ -86,6 +86,6 @@ Instructions for generating lambda gun events using pythia.
 9) Go to the directory where you copied the config file. \
     $ cd .../LambdaMC/CMSSW_10_5_0/src/Configuration/Generator/python
 10) Edit the config file to suit your needs. \
-    $ vim myLambdaGun_cfi.py
+    $ vim LambdaGun_cfi.py
 11) Generate a RAW .root file and a RECO .root file with 10 events. \
     $ cmsDriver.py LambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
