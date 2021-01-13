@@ -1,10 +1,8 @@
-# TrackingDstar
-
 # Lambda Merged Analysis
 Identify and split merged hits in the CMS Pixel Tracker
 
-# Analyzer + Notebook setup instruction
-## Setting up the Analyzer
+## Analyzer + Notebook setup instruction
+### Setting up the Analyzer
 - Setup: (do not run any extra command from the moment you connect to fermilab/lxplus6, not lxplus-slc7)
 	- cd /uscms_data/d3/hichemb/princeton/project1/ (go to your home directory).
 	- source /cvmfs/cms.cern.ch/cmsset_default.csh (or sh for bash).
@@ -22,7 +20,7 @@ Identify and split merged hits in the CMS Pixel Tracker
 	- scram b -j 8 (should get a few warnings).
 	- cd TrackingDstar/LambaAnalyzer/test/
 
-## Running/Making root files
+### Running/Making root files
 Run locally (fastest, good for testing):
  - cmsRun local_trkeffanalyzer_MC_GeneralTracks_cfg.py (runs on files from SingleNeutrino dataset I copied over) 
 
@@ -37,7 +35,7 @@ The following are broken/outdated:
 - cmsRun trkeffanalyzer_Data_GeneralTracks_cfg.py (outdated)
 - cmsRun trkeffanalyzer_MC_GeneralTracks_cfg.py (outdated)
 
-## ROOT Post-Processing
+### ROOT Post-Processing
 After running analyzer
 - `hadd output1.root *.root`  (add root files if you have multiple files). (for crab jobs: hadd the files in your eos directory by simply including the path everytime before filename).
 - `cp /eos/uscms/store/user/hichemb/RelValMinBias_13/crab_lambdaanalysis_relval11/190715_135818/0000/output1.root .` To copy file from eos to local dir.
@@ -46,7 +44,7 @@ After running analyzer
 - `python converRootToPandas.py ofile2.root` (turns root file pixel info into pandas df, outputs pixelTrain.h5, can view panda file using python shell and command pandas.read_hdf("pixelTrain.h5")). [after the changes I made, run it as follow: `python converRootToPandas.py output3.root output3.h5`]
 
 
-## Jupyter Notebooks
+### Jupyter Notebooks
 - Set up CERNBOX and SWAN.
 - Import Github URL: https://github.com/nhaubrich/MergedHits, now you have all the need script and files.
 - Go to SWAN bash terminal and run the following command `pip install --user tables`.
@@ -58,35 +56,36 @@ After running analyzer
 - Run `do_merged.ipynb`, if you did everything above it should run with no errors. If you get an error prompting you to import PyTables then you messed up somewhere.
 - Enjoy your plots.
 
-# Monte Carlo Generation
-Instructions for generating $\Lambda$ gun events using pythia.
+## Monte Carlo Generation
+Instructions for generating lambda gun events using pythia.
 
 ### First, Setup CMSSW and add the MC package
-1) Login to fnal with your username.
-    $ kinit username@FNAL.GOV
-    $ ssh username@cmslpc-sl7.fnal.gov
-2) Open a bash shell.
+1) Login to fnal with your username. \
+    $ kinit **username**@FNAL.GOV \
+    $ ssh **username**@cmslpc-sl7.fnal.gov
+2) Open a bash shell. \
     $ bash
-3) Go to your d3. 
-    $ cd /uscms_data/d3/bbonham
-4) Make a new directory (e.g. LambdaMC) for the MC and switch to it.
-    $ mkdir LambdaMC
+3) Go to your d3. \
+    $ cd /uscms_data/d3/**username**
+4) Make a new directory (e.g. LambdaMC) for the MC and switch to it. \
+    $ mkdir LambdaMC \
     $ cd LambdaMC
-5) Get a CMSSW release and activate the environment. 
-    $ cmsrel CMSSW_10_5_0
-    $ cd CMSSW_10_5_0/src
+5) Get a CMSSW release and activate the environment. \
+    $ source /cvmfs/cms.cern.ch/cmsset_default.sh \
+    $ cmsrel CMSSW_10_5_0 \
+    $ cd CMSSW_10_5_0/src \
     $ cmsenv
-6) Add the MC components to CMSSW. 
+6) Add the MC components to CMSSW. \
     $ git cms-addpkg Configuration/Generator
-7) Compile. 
+7) Compile. \
     $ scram b -j 4
 
 ### Next, Prepare and Run a MC Config File
-8) Go to the dir with example config files. 
-    $ cd Configuration/Generator/python
-9) Copy a config file to use as a template and give it a name (e.g. myLambdaGun_cfi.py). 
-    $ cp SingleElectronPt35_pythia8_cfi.py 
-10) Edit the config file to suit your needs. 
-    $ vim myLambdaGun_cfi.py
-11) Generate a RAW .root file and a RECO .root file with 10 events. You'll may need to alter the options below to suit your needs.
-    $ cmsDriver.py myLambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
+8) Copy the config file from TrackingDstar to the python directory. \
+    $ cp .../TrackingDstar/LambaAnalyzer/mcconfigfile/LambdaGun_cfi.py .../LambdaMC/CMSSW_10_5_0/src/Configuration/Generator/python
+9) Go to the directory where you copied the config file. \
+    $ cd .../LambdaMC/CMSSW_10_5_0/src/Configuration/Generator/python
+10) Edit the config file to suit your needs. \
+    $ vim LambdaGun_cfi.py
+11) Generate a RAW .root file and a RECO .root file with 10 events. You may need to change the options below to suit your needs. \
+    $ cmsDriver.py LambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
