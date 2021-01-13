@@ -60,19 +60,20 @@ After running analyzer
 Instructions for generating lambda gun events using pythia.
 
 ### First, Setup CMSSW and add the MC package
-1) Login to fnal with your username.\
-    $ kinit username@FNAL.GOV\
-    $ ssh username@cmslpc-sl7.fnal.gov
-2) Open a bash shell.\
+1) Login to fnal with your username. \
+    $ kinit **username**@FNAL.GOV \
+    $ ssh **username**@cmslpc-sl7.fnal.gov
+2) Open a bash shell. \
     $ bash
-3) Go to your d3.\
-    $ cd /uscms_data/d3/bbonham
-4) Make a new directory (e.g. LambdaMC) for the MC and switch to it.\
-    $ mkdir LambdaMC\
+3) Go to your d3. \
+    $ cd /uscms_data/d3/**username**
+4) Make a new directory (e.g. LambdaMC) for the MC and switch to it. \
+    $ mkdir LambdaMC \
     $ cd LambdaMC
 5) Get a CMSSW release and activate the environment. \
-    $ cmsrel CMSSW_10_5_0\
-    $ cd CMSSW_10_5_0/src\
+    $ source /cvmfs/cms.cern.ch/cmsset_default.sh \
+    $ cmsrel CMSSW_10_5_0 \
+    $ cd CMSSW_10_5_0/src \
     $ cmsenv
 6) Add the MC components to CMSSW. \
     $ git cms-addpkg Configuration/Generator
@@ -80,9 +81,11 @@ Instructions for generating lambda gun events using pythia.
     $ scram b -j 4
 
 ### Next, Prepare and Run a MC Config File
-8) Go to the dir with our config file, LambdaGun_cfi.py
-    $ cd TrackingDstar/LambaAnalyzer/mcconfigfile/ \
-9) Edit the config file to suit your needs. \
+8) Copy the config file from TrackingDstar to the python directory. \
+    $ cp .../TrackingDstar/LambaAnalyzer/mcconfigfile/LambdaGun_cfi.py .../LambdaMC/CMSSW_10_5_0/src/Configuration/Generator/python
+9) Go to the directory where you copied the config file. \
+    $ cd .../LambdaMC/CMSSW_10_5_0/src/Configuration/Generator/python
+10) Edit the config file to suit your needs. \
     $ vim myLambdaGun_cfi.py
-10) Generate a RAW .root file and a RECO .root file with 10 events. You may need to alter the options below to suit your needs.\
-    $ cmsDriver.py myLambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
+11) Generate a RAW .root file and a RECO .root file with 10 events. \ You may need to alter the options below to suit your needs. \
+    $ cmsDriver.py LambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
