@@ -90,3 +90,15 @@ Instructions for generating $\Lambda$ gun events using pythia.
     $ vim myLambdaGun_cfi.py
 11) Generate a RAW .root file and a RECO .root file with 10 events. You'll may need to alter the options below to suit your needs.
     $ cmsDriver.py myLambdaGun_cfi.py -n 10 --mc --step GEN,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,RECO --conditions auto:mc --eventcontent RAWSIM,RECOSIM --datatier RAW,RECO
+    
+### Submitting crab jobs for MC generation
+12) Go to the dir with example config files. 
+   $ cd Configuration/Generator/python
+13) Run teh crab config file to submit 10 jobs with 100 events each, you can edit BOTH config files to adjust the number fo jobs and events:
+   $crab submit crab_config.py
+14) Check for job status:
+   $crab status -d crab_projects/crab_crab1000  
+15) Or resubmit failed jobs:
+   $crab resubmit -d crab_projects/crab_crab1000 
+16) Your jobs' output should be located in your eos directory (/eos/uscms/store/user/hichemb/MinBias/ for example)
+17) Don't forget to change the name of the the next jobs in the config file or deleting crab_projects/crab_crab1000. 
