@@ -360,8 +360,11 @@ void LambdaAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         //std::cout<<"ndof = "<<RecVtx.ndof()<<std::endl;
         //std::cout<<"tracksSize = "<<RecVtx.tracksSize()<<std::endl;
         //std::cout<<"isFake = "<<RecVtx.isFake()<<std::endl;
-        if(RecVtx.ndof()<4 || RecVtx.tracksSize()<3 || RecVtx.isFake()) continue;  
-        //std::cout << "vertex: " << itnum << " ntracks: " << RecVtx.tracksSize() << std::endl;
+	
+	// Removing this cut since it's not necessary anymore
+        //if(RecVtx.ndof()<4 || RecVtx.tracksSize()<3 || RecVtx.isFake()) continue;  
+        
+	//std::cout << "vertex: " << itnum << " ntracks: " << RecVtx.tracksSize() << std::endl;
 
         PVOrder = itnum;
         PVx = RecVtx.x();
